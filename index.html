@@ -23,11 +23,13 @@
   <script type="text/babel">
     const { useState } = React;
 
+    // ← substitua pelo URL do seu Railway
+    const WORKER_URL = "https://plano-aula-backend-production.up.railway.app/gerar";
+
     const initialForm = {
       escola: "", data: "", curso: "Diurno", duracao: "45",
       classe: "", turma: "", professor: "", generoProfessor: "M", disciplina: "",
       directorAdjunto: "", tema: "", unidadeTematica: "",
-      apiKey: "",
     };
 
     function App() {
@@ -86,7 +88,6 @@
       };
 
       const gerar = async () => {
-        if (!form.apiKey) { setErro("Insira a sua chave de API da Anthropic."); return; }
         if (!form.tema || !form.escola || !form.professor) {
           setErro("Preencha pelo menos: Escola, Professor(a) e Tema."); return;
         }
@@ -95,14 +96,9 @@
 Responde SOMENTE com JSON puro sem markdown. Estrutura exacta:
 {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores":["...","..."],"objectivosAfectivos":["...","..."],"introducao":{"tempo":"5","funcaoDidactica":"Introdução e Motivação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador"},"mediacao":{"tempo":"20","funcaoDidactica":"Mediação e Assimilação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Exposição","meios":"Quadro, marcador, caderno, caneta"},"dominio":{"tempo":"15","funcaoDidactica":"Domínio e Consolidação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador"},"controle":{"tempo":"5","funcaoDidactica":"Controle e Avaliação","conteudo":"Marcação do TPC","competencias":"...","actProfessor":["...","..."],"actAluno":["..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"quadroMural":{"definicao":"...","exemplos":["...","..."],"desenvolvimento":["...","...","..."],"exerciciosPraticos":["...","..."],"aplicacoes":["...","..."],"tpc":["...","..."]}}`;
         try {
-          const res = await fetch("https://api.anthropic.com/v1/messages", {
+          const res = await fetch(WORKER_URL, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": form.apiKey,
-              "anthropic-version": "2023-06-01",
-              "anthropic-dangerous-direct-browser-access": "true"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               model: "claude-haiku-4-5-20251001",
               max_tokens: 4000,
@@ -228,21 +224,6 @@ Responde SOMENTE com JSON puro sem markdown. Estrutura exacta:
           </div>
 
           <div style={{ background:"#fff", borderRadius:10, padding:22, boxShadow:"0 2px 8px rgba(0,0,0,.08)", marginBottom:16 }}>
-            <div style={{ marginBottom:14 }}>
-              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:4 }}>🔑 Chave de API da Anthropic *</label>
-              <div style={{ display:"flex", gap:8 }}>
-                <input name="apiKey" type={mostrarKey?"text":"password"} placeholder="sk-ant-..."
-                  value={form.apiKey} onChange={handle}
-                  style={{ flex:1, padding:"8px 10px", border:"2px solid #f59e0b", borderRadius:6, fontSize:13 }}/>
-                <button onClick={()=>setMostrarKey(!mostrarKey)}
-                  style={{ padding:"8px 12px", border:"1px solid #ccc", borderRadius:6, cursor:"pointer", background:"#f9f9f9", fontSize:13 }}>
-                  {mostrarKey?"🙈 Ocultar":"👁 Ver"}
-                </button>
-              </div>
-              <div style={{ fontSize:11, color:"#92400e", marginTop:4 }}>
-                ⚠️ A chave não é guardada. Obtenha em <a href="https://console.anthropic.com" target="_blank" style={{color:"#1a56db"}}>console.anthropic.com</a>
-              </div>
-            </div>
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
               {[
