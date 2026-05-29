@@ -4,514 +4,330 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gerador de Plano de Aula</title>
+  <!-- React + Babel (sem precisar de Node.js) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <!-- MathJax para fórmulas LaTeX -->
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
-      startup: { typeset: false }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; background: #f3f4f6; min-height: 100vh; }
-
-    /* ── IMPRESSÃO ── */
     @media print {
       .noprint { display: none !important; }
-      body { background: #fff; margin: 0; }
-
-      /* Páginas 1 e 2 — landscape */
-      .page-landscape {
-        width: 297mm;
-        min-height: 210mm;
-        padding: 10mm;
-        page-break-after: always;
-        -webkit-print-color-adjust: exact;
-      }
-      /* Página 3 — portrait */
-      .page-portrait {
-        width: 210mm;
-        min-height: 297mm;
-        padding: 15mm;
-        page-break-after: always;
-      }
-      @page landscape-page { size: A4 landscape; margin: 10mm; }
-      @page portrait-page  { size: A4 portrait;  margin: 15mm; }
-      .page-landscape { page: landscape-page; }
-      .page-portrait  { page: portrait-page; }
+      body { background: #fff; }
     }
-
-    /* Tabelas do plano */
-    .plano-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 9pt; }
-    .plano-table th { background: #ccc; border: 1px solid #000; padding: 5px; text-align: center; font-weight: bold; }
-    .plano-table td { border: 1px solid #000; padding: 5px; vertical-align: top; }
-
-    /* Quadro Mural */
-    .qm-section { margin-bottom: 14px; }
-    .qm-section h4 { font-size: 11pt; font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
-    .qm-section p  { font-size: 10pt; margin-bottom: 4px; }
-    .qm-section ul, .qm-section ol { padding-left: 20px; font-size: 10pt; }
-    .qm-section li { margin-bottom: 3px; }
-    .qm-notacao { background: #f5f5f5; border-left: 3px solid #1a56db; padding: 6px 10px; margin: 6px 0; font-size: 10pt; font-family: monospace; }
-    .qm-resolucao { background: #f0fff4; border-left: 3px solid #16a34a; padding: 6px 10px; margin: 6px 0; font-size: 10pt; }
-    .qm-propriedades ol { list-style: decimal; }
-    .qm-tpc { background: #fff7ed; border-left: 3px solid #f59e0b; padding: 8px 12px; margin-top: 10px; }
   </style>
 </head>
 <body>
-<div id="root"></div>
+  <div id="root"></div>
 
-<script type="text/babel">
-const { useState, useEffect, useRef } = React;
+  <script type="text/babel">
+    const { useState } = React;
 
-const WORKER_URL = "https://plano-aula-backend-production.up.railway.app/gerar";
+    const WORKER_URL = "https://plano-aula-backend-production.up.railway.app/gerar";
 
-const initialForm = {
-  escola:"", data:"", curso:"Diurno", duracao:"45",
-  classe:"", turma:"", professor:"", generoProfessor:"M", disciplina:"",
-  directorAdjunto:"", tema:"", unidadeTematica:"",
-};
+    const initialForm = {
+      escola: "", data: "", curso: "Diurno", duracao: "45",
+      classe: "", turma: "", professor: "", generoProfessor: "M", disciplina: "",
+      directorAdjunto: "", tema: "", unidadeTematica: "",
+    };
 
-// ── Renderiza LaTeX após o plano aparecer ──
-function useMathJax(dep) {
-  useEffect(() => {
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      window.MathJax.typesetPromise();
-    }
-  }, [dep]);
-}
+    function App() {
+      const [form, setForm] = useState(initialForm);
+      const [plano, setPlano] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [erro, setErro] = useState("");
+      const [step, setStep] = useState("form");
+      const [copiado, setCopiado] = useState(false);
+      const [mostrarKey, setMostrarKey] = useState(false);
 
-export default function App() {
-  const [form, setForm]   = useState(initialForm);
-  const [plano, setPlano] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [erro, setErro]   = useState("");
-  const [step, setStep]   = useState("form");
-  const [copiado, setCopiado] = useState(false);
+      const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+      const artigoDocente = form.generoProfessor === "F" ? "A Docente" : "O Docente";
+      const labelProfessor = form.generoProfessor === "F" ? "👩‍🏫 Nome da Professora" : "👨‍🏫 Nome do Professor";
 
-  useMathJax(plano);
+      const descarregarWord = () => {
+        const el = document.getElementById("plano-imprimivel");
+        if (!el) return;
+        const conteudo = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:w="urn:schemas-microsoft-com:office:word"
+          xmlns="http://www.w3.org/TR/REC-html40">
+          <head><meta charset="utf-8"/>
+          <style>
+            body{font-family:Arial,sans-serif;font-size:11pt;margin:2cm}
+            h2,h3{text-align:center}
+            table{width:100%;border-collapse:collapse;margin-bottom:12px}
+            th{background:#cccccc;border:1px solid #000;padding:5px;text-align:center;font-weight:bold}
+            td{border:1px solid #000;padding:5px;vertical-align:top;font-size:10pt}
+          </style></head>
+          <body>${el.innerHTML}</body></html>`;
+        const blob = new Blob(["\ufeff" + conteudo], { type: "application/msword;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Plano_${(form.tema||"aula").replace(/\s+/g,"_")}.doc`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      };
 
-  const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-  const artigoDocente = form.generoProfessor === "F" ? "A Docente" : "O Docente";
-  const labelProf     = form.generoProfessor === "F" ? "👩‍🏫 Nome da Professora" : "👨‍🏫 Nome do Professor";
+      const copiarHTML = () => {
+        const el = document.getElementById("plano-imprimivel");
+        if (!el) return;
+        const blob = new Blob([`<html><body style="font-family:Arial;font-size:11pt;margin:2cm">${el.innerHTML}</body></html>`], { type: "text/html" });
+        const textBlob = new Blob([el.innerText], { type: "text/plain" });
+        navigator.clipboard.write([new ClipboardItem({ "text/html": blob, "text/plain": textBlob })])
+          .then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 3000); })
+          .catch(() => {
+            const range = document.createRange();
+            range.selectNode(el);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand("copy");
+            window.getSelection().removeAllRanges();
+            setCopiado(true); setTimeout(() => setCopiado(false), 3000);
+          });
+      };
 
-  /* ── Word download ── */
-  const descarregarWord = () => {
-    const el = document.getElementById("plano-imprimivel");
-    if (!el) return;
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"/>
-      <style>
-        body{font-family:Arial,sans-serif;font-size:10pt;margin:1.5cm}
-        h2,h3,h4{text-align:center} table{width:100%;border-collapse:collapse;margin-bottom:10px}
-        th{background:#ccc;border:1px solid #000;padding:4px;text-align:center;font-weight:bold;font-size:9pt}
-        td{border:1px solid #000;padding:4px;vertical-align:top;font-size:9pt}
-        .qm-notacao{background:#f5f5f5;padding:4px 8px;margin:4px 0;font-family:monospace}
-        .qm-resolucao{background:#f0fff4;padding:4px 8px;margin:4px 0}
-        .qm-tpc{background:#fff7ed;padding:6px 10px;margin-top:8px}
-      </style></head>
-      <body>${el.innerHTML}</body></html>`;
-    const blob = new Blob(["\ufeff"+html], { type:"application/msword;charset=utf-8" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url; a.download = `Plano_${(form.tema||"aula").replace(/\s+/g,"_")}.doc`;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-  };
+      const gerar = async () => {
+        if (!form.tema || !form.escola || !form.professor) {
+          setErro("Preencha pelo menos: Escola, Professor(a) e Tema."); return;
+        }
+        setErro(""); setLoading(true);
+        const prompt = `Cria um plano de aula para "${form.tema}", disciplina ${form.disciplina||"Geral"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano.
+Responde SOMENTE com JSON puro sem markdown. Estrutura exacta:
+{"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores":["...","..."],"objectivosAfectivos":["...","..."],"introducao":{"tempo":"5","funcaoDidactica":"Introdução e Motivação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador"},"mediacao":{"tempo":"20","funcaoDidactica":"Mediação e Assimilação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Exposição","meios":"Quadro, marcador, caderno, caneta"},"dominio":{"tempo":"15","funcaoDidactica":"Domínio e Consolidação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador"},"controle":{"tempo":"5","funcaoDidactica":"Controle e Avaliação","conteudo":"Marcação do TPC","competencias":"...","actProfessor":["...","..."],"actAluno":["..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"quadroMural":{"definicao":"...","exemplos":["...","..."],"desenvolvimento":["...","...","..."],"exerciciosPraticos":["...","..."],"aplicacoes":["...","..."],"tpc":["...","..."]}}`;
+        try {
+          const res = await fetch(WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-haiku-4-5-20251001",
+              max_tokens: 4000,
+              messages: [{ role: "user", content: prompt }]
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+          const raw = data.content.map(i => i.text||"").join("").trim();
+          const start = raw.indexOf("{"), end = raw.lastIndexOf("}");
+          if (start===-1||end===-1) throw new Error("Resposta inválida da IA.");
+          setPlano(JSON.parse(raw.substring(start, end+1)));
+          setStep("preview");
+        } catch(err) { setErro("Erro: " + err.message); }
+        setLoading(false);
+      };
 
-  const copiarHTML = () => {
-    const el = document.getElementById("plano-imprimivel");
-    if (!el) return;
-    const blob     = new Blob([`<html><body style="font-family:Arial;font-size:10pt;margin:1.5cm">${el.innerHTML}</body></html>`], { type:"text/html" });
-    const textBlob = new Blob([el.innerText], { type:"text/plain" });
-    navigator.clipboard.write([new ClipboardItem({ "text/html":blob, "text/plain":textBlob })])
-      .then(()=>{ setCopiado(true); setTimeout(()=>setCopiado(false),3000); })
-      .catch(()=>{
-        const r = document.createRange(); r.selectNode(el);
-        window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
-        document.execCommand("copy"); window.getSelection().removeAllRanges();
-        setCopiado(true); setTimeout(()=>setCopiado(false),3000);
-      });
-  };
+      const d = form;
+      const p = plano;
+      const tc = { border:"1px solid #000", padding:"5px", verticalAlign:"top", fontSize:"9pt" };
+      const th = { ...tc, background:"#ccc", textAlign:"center", fontWeight:"bold" };
 
-  /* ── Gerar plano ── */
-  const gerar = async () => {
-    if (!form.tema || !form.escola || !form.professor) {
-      setErro("Preencha pelo menos: Escola, Professor(a) e Tema."); return;
-    }
-    setErro(""); setLoading(true);
-
-    const prompt = `Cria um plano de aula completo para "${form.tema}", disciplina ${form.disciplina||"Matemática"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano (INDE/MINED).
-
-Responde SOMENTE com JSON puro sem markdown. Usa LaTeX para fórmulas matemáticas (ex: $A - B = \\{x : x \\in A \\text{ e } x \\notin B\\}$).
-
-Estrutura EXACTA:
-{
-  "objectivosCognitivos": ["...","...","..."],
-  "objectivosPsicomotores": ["...","..."],
-  "objectivosAfectivos": ["...","..."],
-  "introducao": {"tempo":"5","funcaoDidactica":"Introdução e Motivação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador"},
-  "mediacao":   {"tempo":"20","funcaoDidactica":"Mediação e Assimilação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Exposição","meios":"Quadro, marcador, caderno, caneta"},
-  "dominio":    {"tempo":"15","funcaoDidactica":"Domínio e Consolidação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador"},
-  "controle":   {"tempo":"5","funcaoDidactica":"Controle e Avaliação","conteudo":"Marcação do TPC","competencias":"...","actProfessor":["...","..."],"actAluno":["..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},
-  "quadroMural": {
-    "subtemas": [
-      {
-        "titulo": "Nome do subtema (ex: Diferença de Conjuntos)",
-        "definicao": "Texto da definição...",
-        "notacao": "Notação matemática em LaTeX: $A - B = ...$",
-        "conjuntoUniverso": "Explicação do conjunto universo se aplicável (senão null)",
-        "exemplos": [
-          {"enunciado":"Seja $A = \\{1,2,3\\}$ e $B = \\{2,3,4\\}$","resolucao":"$A - B = \\{1\\}$"}
-        ],
-        "propriedades": ["$A - A = \\emptyset$","$A - \\emptyset = A$"]
-      }
-    ],
-    "exercicios": [
-      {"enunciado":"Texto do exercício com LaTeX","resolucao":"Resolução com LaTeX"}
-    ],
-    "tpc": [
-      {"enunciado":"Texto do TPC","resolucao":"Resolução do TPC"}
-    ]
-  }
-}`;
-
-    try {
-      const res  = await fetch(WORKER_URL, {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-haiku-4-5-20251001", max_tokens:6000, messages:[{role:"user",content:prompt}] }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
-      const raw   = data.content.map(i=>i.text||"").join("").trim();
-      const start = raw.indexOf("{"), end = raw.lastIndexOf("}");
-      if (start===-1||end===-1) throw new Error("Resposta inválida da IA.");
-      setPlano(JSON.parse(raw.substring(start,end+1)));
-      setStep("preview");
-    } catch(err) { setErro("Erro: "+err.message); }
-    setLoading(false);
-  };
-
-  const d = form, p = plano;
-
-  /* ══════════════════════════════════════════
-     PLANO COMPLETO (renderizado na página)
-  ══════════════════════════════════════════ */
-  const PlanoCompleto = () => {
-    if (!p) return null;
-    const tc = { border:"1px solid #000", padding:"5px", verticalAlign:"top", fontSize:"9pt" };
-    const th = { ...tc, background:"#ccc", textAlign:"center", fontWeight:"bold" };
-
-    return (
-      <div id="plano-imprimivel" style={{fontFamily:"Arial,sans-serif",fontSize:"10pt",color:"#000"}}>
-
-        {/* ══ PÁGINA 1 — Cabeçalho + Objectivos + Assinaturas (landscape) ══ */}
-        <div className="page-landscape" style={{pageBreakAfter:"always"}}>
-          <h2 style={{textAlign:"center",marginBottom:10}}>Plano de Aula</h2>
-          <table className="plano-table">
-            <tbody>
-              <tr>
-                <td style={tc}><b>Escola:</b> {d.escola}</td>
-                <td style={tc}><b>Data:</b> {d.data}</td>
-                <td style={tc}><b>Curso:</b> {d.curso}</td>
-              </tr>
-              <tr>
-                <td style={tc}><b>Duração:</b> {d.duracao}´</td>
-                <td style={tc}><b>Classe:</b> {d.classe}ª</td>
-                <td style={tc}><b>Turma:</b> {d.turma}</td>
-              </tr>
-              <tr>
-                <td style={tc} colSpan={2}><b>Nome {d.generoProfessor==="F"?"da Professora":"do Professor"}:</b> {d.professor}</td>
-                <td style={tc}><b>Disciplina:</b> {d.disciplina}</td>
-              </tr>
-              <tr>
-                <td style={tc} colSpan={3}><b>Unidade Temática:</b> {d.unidadeTematica||d.tema} &nbsp;|&nbsp; <b>Tema:</b> {d.tema}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <b style={{fontSize:"10pt"}}>Objectivos</b>
-          <table className="plano-table" style={{margin:"4px 0 16px"}}>
-            <thead><tr>
-              <th style={th}>Objectivos Cognitivos</th>
-              <th style={th}>Objectivos Psicomotores</th>
-              <th style={th}>Objectivos Afectivos</th>
-            </tr></thead>
-            <tbody><tr>
-              <td style={tc}>No fim da aula o aluno deve possuir conhecimentos sobre:<br/><br/>{p.objectivosCognitivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
-              <td style={tc}>No fim da aula o aluno deve ser capaz de:<br/><br/>{p.objectivosPsicomotores.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
-              <td style={tc}>No fim da aula o aluno estará convicto de que:<br/><br/>{p.objectivosAfectivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
-            </tr></tbody>
-          </table>
-
-          <table style={{width:"100%",borderCollapse:"collapse",marginTop:24}}>
-            <tbody><tr>
-              <td style={{border:"none",textAlign:"center",width:"50%",paddingTop:20}}>
-                O Director Adjunto Pedagógico<br/><br/><br/>
-                ______________________________<br/>({d.directorAdjunto})
-              </td>
-              <td style={{border:"none",textAlign:"center",width:"50%",paddingTop:20}}>
-                {artigoDocente}<br/><br/><br/>
-                ______________________________<br/>({d.professor})
-              </td>
-            </tr></tbody>
-          </table>
-        </div>
-
-        {/* ══ PÁGINA 2 — Desenvolvimento da Aula (landscape) ══ */}
-        <div className="page-landscape" style={{pageBreakAfter:"always"}}>
-          <h3 style={{textAlign:"center",marginBottom:10}}>Desenvolvimento da Aula — {d.tema}</h3>
-          <table className="plano-table">
-            <thead><tr>
-              {["Tempo","Função Didáctica","Conteúdo","Competências","Act. do Professor","Act. do Aluno","Método","Meios de Ensino"].map(x=>(
-                <th key={x} style={th}>{x}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {[p.introducao,p.mediacao,p.dominio,p.controle].map((s,i)=>(
-                <tr key={i} style={{background:i%2===0?"#f9f9f9":"#fff"}}>
-                  <td style={{...tc,textAlign:"center",fontWeight:"bold"}}>{s.tempo}´</td>
-                  <td style={tc}>{s.funcaoDidactica}</td>
-                  <td style={tc}>{s.conteudo}</td>
-                  <td style={tc}>{s.competencias}</td>
-                  <td style={tc}>{s.actProfessor.map((a,j)=><div key={j}>• {a}</div>)}</td>
-                  <td style={tc}>{s.actAluno.map((a,j)=><div key={j}>• {a}</div>)}</td>
-                  <td style={tc}>{s.metodo}</td>
-                  <td style={tc}>{s.meios}</td>
+      const PlanoCompleto = () => !p ? null : (
+        <div id="plano-imprimivel" style={{ fontFamily:"Arial,sans-serif", fontSize:"10pt", color:"#000" }}>
+          <div style={{ pageBreakAfter:"always" }}>
+            <h2 style={{ textAlign:"center", margin:"0 0 10px" }}>Plano de Aula</h2>
+            <table style={{ width:"100%", borderCollapse:"collapse", marginBottom:10 }}>
+              <tbody>
+                <tr>
+                  <td style={tc}><b>Escola:</b> {d.escola}</td>
+                  <td style={tc}><b>Data:</b> {d.data}</td>
+                  <td style={tc}><b>Curso:</b> {d.curso}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+                <tr>
+                  <td style={tc}><b>Duração da Aula:</b> {d.duracao}´</td>
+                  <td style={tc}><b>Classe:</b> {d.classe}ª</td>
+                  <td style={tc}><b>Turma:</b> {d.turma}</td>
+                </tr>
+                <tr>
+                  <td style={tc} colSpan={2}><b>Nome {d.generoProfessor==="F"?"da Professora":"do Professor"}:</b> {d.professor}</td>
+                  <td style={tc}><b>Disciplina:</b> {d.disciplina}</td>
+                </tr>
+                <tr>
+                  <td style={tc} colSpan={3}><b>Unidade Temática:</b> {d.unidadeTematica||d.tema} &nbsp;|&nbsp; <b>Tema:</b> {d.tema}</td>
+                </tr>
+              </tbody>
+            </table>
+            <b>Objectivos</b>
+            <table style={{ width:"100%", borderCollapse:"collapse", margin:"4px 0 20px" }}>
+              <thead><tr>
+                <th style={th}>Objectivos Cognitivos</th>
+                <th style={th}>Objectivos Psicomotores</th>
+                <th style={th}>Objectivos Afectivos</th>
+              </tr></thead>
+              <tbody><tr>
+                <td style={tc}>No fim da aula o aluno deve possuir conhecimentos sobre:<br/><br/>{p.objectivosCognitivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
+                <td style={tc}>No fim da aula o aluno deve ser capaz de:<br/><br/>{p.objectivosPsicomotores.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
+                <td style={tc}>No fim da aula o aluno estará convicto de que:<br/><br/>{p.objectivosAfectivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
+              </tr></tbody>
+            </table>
+            <table style={{ width:"100%", borderCollapse:"collapse", marginTop:30 }}>
+              <tbody><tr>
+                <td style={{ border:"none", textAlign:"center", width:"50%", paddingTop:24 }}>
+                  O Director Adjunto Pedagógico<br/><br/><br/>______________________________<br/>({d.directorAdjunto})
+                </td>
+                <td style={{ border:"none", textAlign:"center", width:"50%", paddingTop:24 }}>
+                  {artigoDocente}<br/><br/><br/>______________________________<br/>({d.professor})
+                </td>
+              </tr></tbody>
+            </table>
+          </div>
+
+          <div style={{ pageBreakAfter:"always" }}>
+            <h3 style={{ textAlign:"center", margin:"0 0 10px" }}>Desenvolvimento da Aula — {d.tema}</h3>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr>
+                {["Tempo","Função Didáctica","Conteúdo","Competências","Act. do Professor","Act. do Aluno","Método","Meios de Ensino"].map(x=>(
+                  <th key={x} style={th}>{x}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {[p.introducao,p.mediacao,p.dominio,p.controle].map((s,i)=>(
+                  <tr key={i} style={{ background:i%2===0?"#f9f9f9":"#fff" }}>
+                    <td style={{ ...tc, textAlign:"center", fontWeight:"bold" }}>{s.tempo}´</td>
+                    <td style={tc}>{s.funcaoDidactica}</td>
+                    <td style={tc}>{s.conteudo}</td>
+                    <td style={tc}>{s.competencias}</td>
+                    <td style={tc}>{s.actProfessor.map((a,j)=><div key={j}>• {a}</div>)}</td>
+                    <td style={tc}>{s.actAluno.map((a,j)=><div key={j}>• {a}</div>)}</td>
+                    <td style={tc}>{s.metodo}</td>
+                    <td style={tc}>{s.meios}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <h3 style={{ textAlign:"center", margin:"0 0 14px" }}>Quadro Mural — Tema: {d.tema}</h3>
+            <div style={{ fontSize:"10pt" }}>
+              <p><b>1. O que é {d.tema}?</b><br/><b>Definição:</b> {p.quadroMural.definicao}</p>
+              <p style={{marginTop:8}}><b>2. Exemplos Simples:</b></p>
+              <ul>{p.quadroMural.exemplos.map((e,i)=><li key={i}>{e}</li>)}</ul>
+              <p style={{marginTop:8}}><b>3. Desenvolvimento:</b></p>
+              <ul>{p.quadroMural.desenvolvimento.map((e,i)=><li key={i}>{e}</li>)}</ul>
+              <p style={{marginTop:8}}><b>4. Exercícios Práticos:</b></p>
+              <ul>{p.quadroMural.exerciciosPraticos.map((e,i)=><li key={i}>{e}</li>)}</ul>
+              <p style={{marginTop:8}}><b>5. Aplicações Práticas:</b></p>
+              <ul>{p.quadroMural.aplicacoes.map((e,i)=><li key={i}>{e}</li>)}</ul>
+              <p style={{marginTop:8}}><b>Tarefa de Casa (TPC):</b></p>
+              <ul>{p.quadroMural.tpc.map((e,i)=><li key={i}>{e}</li>)}</ul>
+            </div>
+          </div>
         </div>
+      );
 
-        {/* ══ PÁGINA 3 — Quadro Mural (portrait) ══ */}
-        <div className="page-portrait">
-          <h3 style={{textAlign:"center",marginBottom:14}}>Quadro Mural</h3>
-          <p style={{textAlign:"center",fontWeight:"bold",marginBottom:14,fontSize:"11pt"}}>
-            Tema: {d.tema}
-          </p>
+      // ── FORMULÁRIO ──
+      if (step === "form") return (
+        <div style={{ maxWidth:840, margin:"0 auto", padding:"20px 14px" }}>
+          <div style={{ background:"linear-gradient(135deg,#1a56db,#0e3a8c)", borderRadius:10, padding:"18px 22px", marginBottom:22, color:"#fff" }}>
+            <div style={{ fontSize:22, fontWeight:700 }}>📋 Gerador de Plano de Aula com IA</div>
+            <div style={{ fontSize:13, opacity:.85, marginTop:4 }}>Preencha os dados e a IA gera o plano completo</div>
+          </div>
 
-          {/* Subtemas */}
-          {p.quadroMural.subtemas && p.quadroMural.subtemas.map((sub,i)=>(
-            <div key={i} className="qm-section">
-              <h4>{sub.titulo}</h4>
+          <div style={{ background:"#fff", borderRadius:10, padding:22, boxShadow:"0 2px 8px rgba(0,0,0,.08)", marginBottom:16 }}>
 
-              <p style={{marginTop:6}}><b>Definição</b></p>
-              <p>{sub.definicao}</p>
-
-              {sub.notacao && (
-                <div className="qm-notacao">
-                  <b>Notação:</b> <span dangerouslySetInnerHTML={{__html: sub.notacao}}/>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              {[
+                ["escola","🏫 Escola","Ex: Escola Básica de Tobuè"],
+                ["data","📅 Data",""],
+                ["curso","📚 Curso","Ex: Diurno"],
+                ["duracao","⏱ Duração (min)","45"],
+                ["classe","🎓 Classe","Ex: 8"],
+                ["turma","🔤 Turma","Ex: A"],
+                ["disciplina","📐 Disciplina","Ex: Matemática"],
+                ["directorAdjunto","🏛 Director Adjunto Pedagógico",""],
+                ["unidadeTematica","📂 Unidade Temática","Ex: Funções"],
+              ].map(([name,label,ph])=>(
+                <div key={name}>
+                  <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>{label}</label>
+                  <input name={name} type={name==="data"?"date":"text"} placeholder={ph} value={form[name]} onChange={handle}
+                    style={{ width:"100%", padding:"7px 9px", border:"1px solid #ccc", borderRadius:6, fontSize:13 }}/>
                 </div>
-              )}
-
-              {sub.conjuntoUniverso && (
-                <>
-                  <p style={{marginTop:8}}><b>Conjunto Universo</b></p>
-                  <p>{sub.conjuntoUniverso}</p>
-                </>
-              )}
-
-              {sub.exemplos && sub.exemplos.length > 0 && (
-                <>
-                  <p style={{marginTop:8}}><b>Exemplos:</b></p>
-                  {sub.exemplos.map((ex,j)=>(
-                    <div key={j} style={{marginBottom:6}}>
-                      <p dangerouslySetInnerHTML={{__html: ex.enunciado}}/>
-                      {ex.resolucao && (
-                        <div className="qm-resolucao">
-                          <span dangerouslySetInnerHTML={{__html: ex.resolucao}}/>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {sub.propriedades && sub.propriedades.length > 0 && (
-                <>
-                  <p style={{marginTop:8}}><b>Propriedades Importantes:</b></p>
-                  <ol className="qm-propriedades">
-                    {sub.propriedades.map((pr,j)=>(
-                      <li key={j} dangerouslySetInnerHTML={{__html: pr}}/>
-                    ))}
-                  </ol>
-                </>
-              )}
-            </div>
-          ))}
-
-          {/* Exercícios */}
-          {p.quadroMural.exercicios && p.quadroMural.exercicios.length > 0 && (
-            <div className="qm-section" style={{marginTop:12}}>
-              <h4>Exercícios:</h4>
-              <ol>
-                {p.quadroMural.exercicios.map((ex,i)=>(
-                  <li key={i} style={{marginBottom:8}}>
-                    <span dangerouslySetInnerHTML={{__html: ex.enunciado}}/>
-                    {ex.resolucao && (
-                      <div className="qm-resolucao" style={{marginTop:4}}>
-                        <b>Resolução:</b> <span dangerouslySetInnerHTML={{__html: ex.resolucao}}/>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-
-          {/* TPC */}
-          {p.quadroMural.tpc && p.quadroMural.tpc.length > 0 && (
-            <div className="qm-tpc">
-              <h4 style={{marginBottom:8}}>TPC</h4>
-              <ol>
-                {p.quadroMural.tpc.map((t,i)=>(
-                  <li key={i} style={{marginBottom:8}}>
-                    <span dangerouslySetInnerHTML={{__html: t.enunciado}}/>
-                    {t.resolucao && (
-                      <div className="qm-resolucao" style={{marginTop:4}}>
-                        <b>Resolução:</b> <span dangerouslySetInnerHTML={{__html: t.resolucao}}/>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </div>
-
-      </div>
-    );
-  };
-
-  /* ══════════════════════════════════════════
-     FORMULÁRIO
-  ══════════════════════════════════════════ */
-  if (step === "form") return (
-    <div style={{maxWidth:840,margin:"0 auto",padding:"20px 14px"}}>
-      <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",borderRadius:10,padding:"18px 22px",marginBottom:22,color:"#fff"}}>
-        <div style={{fontSize:22,fontWeight:700}}>📋 Gerador de Plano de Aula com IA</div>
-        <div style={{fontSize:13,opacity:.85,marginTop:4}}>Preencha os dados e a IA gera o plano completo</div>
-      </div>
-
-      <div style={{background:"#fff",borderRadius:10,padding:22,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          {[
-            ["escola","🏫 Escola","Ex: Escola Básica de Tobuè"],
-            ["data","📅 Data",""],
-            ["curso","📚 Curso","Ex: Diurno"],
-            ["duracao","⏱ Duração (min)","45"],
-            ["classe","🎓 Classe","Ex: 8"],
-            ["turma","🔤 Turma","Ex: A"],
-            ["disciplina","📐 Disciplina","Ex: Matemática"],
-            ["directorAdjunto","🏛 Director Adjunto Pedagógico",""],
-            ["unidadeTematica","📂 Unidade Temática","Ex: Conjuntos"],
-          ].map(([name,label,ph])=>(
-            <div key={name}>
-              <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>{label}</label>
-              <input name={name} type={name==="data"?"date":"text"} placeholder={ph} value={form[name]} onChange={handle}
-                style={{width:"100%",padding:"7px 9px",border:"1px solid #ccc",borderRadius:6,fontSize:13}}/>
-            </div>
-          ))}
-        </div>
-
-        {/* Género + Nome */}
-        <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:14,marginTop:14,alignItems:"end"}}>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>⚥ Género</label>
-            <div style={{display:"flex",gap:8}}>
-              {[["M","♂ M"],["F","♀ F"]].map(([val,lbl])=>(
-                <label key={val} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",
-                  padding:"7px 16px",borderRadius:6,border:`2px solid ${form.generoProfessor===val?"#1a56db":"#ccc"}`,
-                  background:form.generoProfessor===val?"#eff6ff":"#fff",
-                  fontWeight:form.generoProfessor===val?700:400,fontSize:13}}>
-                  <input type="radio" name="generoProfessor" value={val} checked={form.generoProfessor===val}
-                    onChange={handle} style={{display:"none"}}/>
-                  {lbl}
-                </label>
               ))}
             </div>
+
+            <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:14, marginTop:14, alignItems:"end" }}>
+              <div>
+                <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>⚥ Género</label>
+                <div style={{ display:"flex", gap:8 }}>
+                  {[["M","♂ M"],["F","♀ F"]].map(([val,lbl])=>(
+                    <label key={val} style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer",
+                      padding:"7px 16px", borderRadius:6, border:`2px solid ${form.generoProfessor===val?"#1a56db":"#ccc"}`,
+                      background:form.generoProfessor===val?"#eff6ff":"#fff",
+                      fontWeight:form.generoProfessor===val?700:400, fontSize:13 }}>
+                      <input type="radio" name="generoProfessor" value={val} checked={form.generoProfessor===val}
+                        onChange={handle} style={{ display:"none" }}/>
+                      {lbl}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>{labelProfessor}</label>
+                <input name="professor" placeholder={form.generoProfessor==="F"?"Nome completo da professora":"Nome completo do professor"}
+                  value={form.professor} onChange={handle}
+                  style={{ width:"100%", padding:"7px 9px", border:"1px solid #ccc", borderRadius:6, fontSize:13 }}/>
+              </div>
+            </div>
+
+            <div style={{ marginTop:8, padding:"7px 12px", background:"#f0f7ff", borderRadius:6, fontSize:12, color:"#1a56db" }}>
+              ℹ️ A assinatura aparecerá como: <b>"{artigoDocente}"</b>
+            </div>
+
+            <div style={{ marginTop:14 }}>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>✏️ Tema da Aula *</label>
+              <input name="tema" placeholder="Ex: Funções Lineares, Sistema Digestivo, Revolução Industrial..."
+                value={form.tema} onChange={handle}
+                style={{ width:"100%", padding:"9px 11px", border:"2px solid #1a56db", borderRadius:6, fontSize:14 }}/>
+            </div>
+
+            {erro && <div style={{ marginTop:10, padding:"10px 14px", background:"#fee2e2", border:"1px solid #fca5a5", borderRadius:6, color:"#b91c1c", fontSize:13 }}>⚠️ {erro}</div>}
+
+            <button onClick={gerar} disabled={loading}
+              style={{ marginTop:18, width:"100%", padding:13, background:loading?"#93c5fd":"#1a56db", color:"#fff", border:"none", borderRadius:8, fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer" }}>
+              {loading ? "⏳ A gerar com IA..." : "🚀 Gerar Plano de Aula"}
+            </button>
+            {loading && <div style={{ marginTop:10, textAlign:"center", fontSize:13, color:"#555" }}>A IA está a criar o plano para <b>"{form.tema}"</b>. Aguarde...</div>}
           </div>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>{labelProf}</label>
-            <input name="professor" placeholder={form.generoProfessor==="F"?"Nome completo da professora":"Nome completo do professor"}
-              value={form.professor} onChange={handle}
-              style={{width:"100%",padding:"7px 9px",border:"1px solid #ccc",borderRadius:6,fontSize:13}}/>
+        </div>
+      );
+
+      // ── PREVIEW ──
+      return (
+        <div style={{ maxWidth:920, margin:"0 auto", padding:"16px 14px" }}>
+          <div className="noprint" style={{ background:"#f0f7ff", border:"1px solid #c3dafe", borderRadius:8, padding:"12px 16px", marginBottom:16, display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+            <div style={{ fontSize:13 }}><b>{d.tema}</b> — {d.escola} | {d.classe}ª {d.turma} | {d.disciplina}</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              <button onClick={()=>{ setStep("form"); setPlano(null); }}
+                style={{ padding:"7px 14px", background:"#fff", border:"1px solid #ccc", borderRadius:6, cursor:"pointer", fontSize:13 }}>
+                ✏️ Novo Plano
+              </button>
+              <button onClick={descarregarWord}
+                style={{ padding:"7px 16px", background:"#1a56db", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:700 }}>
+                ⬇️ Descarregar Word
+              </button>
+              <button onClick={copiarHTML}
+                style={{ padding:"7px 16px", background:"#16a34a", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:700 }}>
+                📋 Copiar (colar no Word)
+              </button>
+              <button onClick={()=>window.print()}
+                style={{ padding:"7px 16px", background:"#7c3aed", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:700 }}>
+                🖨️ Imprimir / PDF
+              </button>
+            </div>
+          </div>
+          {copiado && (
+            <div style={{ background:"#dcfce7", border:"1px solid #86efac", borderRadius:8, padding:"10px 14px", marginBottom:12, fontSize:13, color:"#166534", fontWeight:600 }}>
+              ✅ Copiado! Abra o Word → Ctrl+V
+            </div>
+          )}
+          <div style={{ background:"#fff", padding:"20px", borderRadius:10, boxShadow:"0 2px 8px rgba(0,0,0,.07)" }}>
+            <PlanoCompleto />
           </div>
         </div>
+      );
+    }
 
-        <div style={{marginTop:8,padding:"7px 12px",background:"#f0f7ff",borderRadius:6,fontSize:12,color:"#1a56db"}}>
-          ℹ️ A assinatura aparecerá como: <b>"{artigoDocente}"</b>
-        </div>
-
-        <div style={{marginTop:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>✏️ Tema da Aula *</label>
-          <input name="tema" placeholder="Ex: Diferença de Conjuntos, Funções Lineares, Sistema Digestivo..."
-            value={form.tema} onChange={handle}
-            style={{width:"100%",padding:"9px 11px",border:"2px solid #1a56db",borderRadius:6,fontSize:14}}/>
-        </div>
-
-        {erro && <div style={{marginTop:10,padding:"10px 14px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,color:"#b91c1c",fontSize:13}}>⚠️ {erro}</div>}
-
-        <button onClick={gerar} disabled={loading}
-          style={{marginTop:18,width:"100%",padding:13,background:loading?"#93c5fd":"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
-          {loading?"⏳ A gerar com IA...":"🚀 Gerar Plano de Aula"}
-        </button>
-        {loading && <div style={{marginTop:10,textAlign:"center",fontSize:13,color:"#555"}}>A IA está a criar o plano para <b>"{form.tema}"</b>. Aguarde...</div>}
-      </div>
-    </div>
-  );
-
-  /* ══════════════════════════════════════════
-     PREVIEW
-  ══════════════════════════════════════════ */
-  return (
-    <div style={{maxWidth:960,margin:"0 auto",padding:"16px 14px"}}>
-      <style>{`@media print { .noprint { display:none!important; } body { background:#fff; } }`}</style>
-
-      <div className="noprint" style={{background:"#f0f7ff",border:"1px solid #c3dafe",borderRadius:8,padding:"12px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-        <div style={{fontSize:13}}><b>{d.tema}</b> — {d.escola} | {d.classe}ª {d.turma} | {d.disciplina}</div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <button onClick={()=>{setStep("form");setPlano(null);}}
-            style={{padding:"7px 14px",background:"#fff",border:"1px solid #ccc",borderRadius:6,cursor:"pointer",fontSize:13}}>
-            ✏️ Novo Plano
-          </button>
-          <button onClick={descarregarWord}
-            style={{padding:"7px 16px",background:"#1a56db",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>
-            ⬇️ Descarregar Word
-          </button>
-          <button onClick={copiarHTML}
-            style={{padding:"7px 16px",background:"#16a34a",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>
-            📋 Copiar (colar no Word)
-          </button>
-          <button onClick={()=>window.print()}
-            style={{padding:"7px 16px",background:"#7c3aed",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>
-            🖨️ Imprimir / PDF
-          </button>
-        </div>
-      </div>
-
-      {copiado && (
-        <div style={{background:"#dcfce7",border:"1px solid #86efac",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#166534",fontWeight:600}}>
-          ✅ Copiado! Abra o Word → Ctrl+V
-        </div>
-      )}
-
-      <div style={{background:"#fff",padding:"20px",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.07)"}}>
-        <PlanoCompleto/>
-      </div>
-    </div>
-  );
-}
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App/>);
-</script>
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
 </body>
 </html>
