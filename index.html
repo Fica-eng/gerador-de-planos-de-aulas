@@ -276,6 +276,25 @@
     );
   }
 
+  // ── Error Boundary ────────────────────────────────────────────────────────
+  class ErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { erro: null }; }
+    static getDerivedStateFromError(err) { return { erro: err.message }; }
+    render() {
+      if (this.state.erro) return (
+        <div style={{padding:30, fontFamily:"Arial", color:"#b91c1c", background:"#fee2e2", minHeight:"100vh"}}>
+          <h2>❌ Erro na aplicação</h2>
+          <pre style={{marginTop:12, fontSize:13, whiteSpace:"pre-wrap"}}>{this.state.erro}</pre>
+          <button onClick={()=>{ localStorage.clear(); window.location.reload(); }}
+            style={{marginTop:16, padding:"10px 20px", background:"#1a56db", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontSize:14}}>
+            🔄 Limpar e recarregar
+          </button>
+        </div>
+      );
+      return this.props.children;
+    }
+  }
+
   // ── App Principal ─────────────────────────────────────────────────────────
   function App() {
     const [form, setForm]     = useState(initialForm);
@@ -632,7 +651,7 @@ Estrutura EXACTA do JSON:
         <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",borderRadius:10,padding:"14px 22px",marginBottom:22,color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
           <div>
             <div style={{fontSize:20,fontWeight:700}}>📋 Gerador de Plano de Aula com IA</div>
-            <div style={{fontSize:13,opacity:.85,marginTop:2}}>Olá, <b>{professor.nome}</b> 👋</div>
+            <div style={{fontSize:13,opacity:.85,marginTop:2}}>Olá, <b>{professor?.nome || "Professor"}</b> 👋</div>
           </div>
           <button onClick={sair}
             style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>
@@ -738,7 +757,9 @@ Estrutura EXACTA do JSON:
     );
   }
 
-  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    <ErrorBoundary><App/></ErrorBoundary>
+  );
 </script>
 </body>
 </html>
