@@ -321,29 +321,32 @@
       const disc = ["matemática","matematica","física","fisica","química","quimica"];
       const usaLatex = disc.some(d => (form.disciplina||"").toLowerCase().includes(d));
 
-      // Detectar se o tema precisa de gráfico
-      const temasGrafico = ["função","funções","funcao","funcoes","gráfico","grafico","estatística","estatistica","trigonometria","geometria","parábola","parabola","hipérbole","hiperbole","linear","quadrática","quadratica","exponencial","logaritmo","seno","coseno","tangente","cinemática","cinematica","movimento","velocidade","aceleração","aceleracao"];
-      const precisaGrafico = temasGrafico.some(t => form.tema.toLowerCase().includes(t));
+      // SEMPRE tentar gerar gráfico se for disciplina científica
+      const instrGrafico = `
+GRÁFICOS — MUITO IMPORTANTE:
+Analisa o tema "${form.tema}" e decide se precisa de gráfico.
+Se o tema envolver funções, equações, estatística, movimento, forças, reacções químicas, geometria, trigonometria ou qualquer conceito visual — OBRIGATORIAMENTE inclui pelo menos UM gráfico.
 
-      const instrGrafico = precisaGrafico ? `
-GRÁFICOS: Este tema requer gráficos. Inclui no quadroMural os campos de gráfico usando esta estrutura:
+Usa EXACTAMENTE uma destas estruturas no campo "grafico" do quadroMural:
 
-Para UMA função:
+Para função matemática (ex: funções lineares, quadráticas, trigonométricas):
 "grafico": { "tipo": "funcao", "expressao": "2*x + 1", "titulo": "Gráfico de f(x) = 2x + 1", "label": "f(x) = 2x+1", "xmin": -5, "xmax": 5, "eixoX": "x", "eixoY": "f(x)", "descricao": "Recta com declive 2 e ordenada na origem 1" }
 
-Para MÚLTIPLAS funções:
-"grafico": { "tipo": "multiplas_funcoes", "titulo": "Comparação de funções", "funcoes": [{"expressao":"x*x","label":"f(x)=x²"},{"expressao":"2*x","label":"g(x)=2x"}], "xmin":-5, "xmax":5, "eixoX":"x", "eixoY":"y" }
+Para múltiplas funções:
+"grafico": { "tipo": "multiplas_funcoes", "titulo": "Comparação de funções", "funcoes": [{"expressao":"x*x","label":"f(x)=x²"},{"expressao":"2*x","label":"g(x)=2x"}], "xmin": -5, "xmax": 5, "eixoX": "x", "eixoY": "y" }
 
-Para BARRAS (estatística):
-"grafico": { "tipo": "barras", "titulo": "...", "labels": ["A","B","C"], "valores": [10,20,30], "label": "Frequência", "eixoX": "Classe", "eixoY": "Frequência" }
+Para estatística/frequências (barras):
+"grafico": { "tipo": "barras", "titulo": "Frequência Absoluta", "labels": ["10-20","20-30","30-40"], "valores": [5,12,8], "label": "Frequência", "eixoX": "Classes", "eixoY": "Frequência" }
 
-Para DISPERSÃO:
-"grafico": { "tipo": "dispersao", "titulo": "...", "pontos": [{"x":1,"y":2},{"x":2,"y":4}], "label": "Dados", "eixoX": "x", "eixoY": "y" }
+Para dispersão de pontos:
+"grafico": { "tipo": "dispersao", "titulo": "Diagrama de dispersão", "pontos": [{"x":1,"y":2},{"x":2,"y":3.5},{"x":3,"y":5}], "label": "Dados", "eixoX": "x", "eixoY": "y" }
 
-Usa expressões JavaScript válidas: Math.sin(x), Math.cos(x), Math.sqrt(x), Math.pow(x,2), x*x, etc.
-Podes adicionar "grafico" dentro de blocos de desenvolvimento também.
-Podes adicionar "graficoExemplos" e "graficoExercicios" no quadroMural.
-Se o tema NÃO precisar de gráfico, omite os campos de gráfico.` : `GRÁFICOS: Este tema não requer gráficos. Não incluas campos de gráfico.`;
+REGRAS IMPORTANTES:
+- Expressões JS válidas: use x*x em vez de x^2, Math.sin(x), Math.cos(x), Math.sqrt(x), Math.abs(x), Math.pow(x,3)
+- xmin e xmax NUNCA podem ser iguais
+- labels e valores devem ter o mesmo número de elementos
+- pontos devem ser array de objectos {x, y}
+- Se o tema NÃO precisar de gráfico (ex: história, português), coloca "grafico": null`;
 
       const prompt = `Cria um plano de aula completo para "${form.tema}", disciplina ${form.disciplina||"Matemática"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano (currículo INDE/MINED).
 
@@ -504,8 +507,8 @@ Estrutura EXACTA do JSON:
             </table>
           </div>
 
-          {/* Página 3 — Portrait: Quadro Mural */}
-          <div className="pagina-portrait">
+          {/* Página 3 em diante — Portrait: Quadro Mural (sem limite de páginas) */}
+          <div className="pagina-portrait" style={{marginTop:20}}>
             <h3 style={{textAlign:"center",margin:"0 0 6px",fontSize:"13pt"}}>Quadro Mural</h3>
             <div style={{textAlign:"center",fontSize:"11pt",fontWeight:"bold",marginBottom:14,color:"#1a56db"}}>Tema: {d.tema}</div>
             <QuadroMural qm={p.quadroMural} tema={d.tema} disciplina={p.disciplina}/>
