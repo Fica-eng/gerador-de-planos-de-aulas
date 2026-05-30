@@ -73,94 +73,125 @@
     const chartRef  = useRef(null);
 
     useEffect(() => {
-      if (!dados || !canvasRef.current) return;
-      if (chartRef.current) chartRef.current.destroy();
+      console.log("=== GRAFICO COMPONENT ===");
+      console.log("dados recebidos:", JSON.stringify(dados));
+
+      if (!dados) { console.log("dados é null/undefined — sem gráfico"); return; }
+      if (!dados.tipo) { console.log("dados.tipo em falta"); return; }
+      if (!canvasRef.current) { console.log("canvas não encontrado"); return; }
+
+      if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
 
       const ctx = canvasRef.current.getContext("2d");
+      console.log("tipo:", dados.tipo);
 
-      // Gerar pontos para função se vier expressão
-      let datasets = [];
-      if (dados.tipo === "funcao" && dados.expressao) {
-        try {
-          const xs = [];
-          const ys = [];
-          const xmin = dados.xmin ?? -10;
-          const xmax = dados.xmax ?? 10;
-          const passo = (xmax - xmin) / 200;
+      try {
+        if (dados.tipo === "funcao") {
+          const expr = dados.expressao;
+          if (!expr) { console.log("expressao em falta"); return; }
+          const xmin = typeof dados.xmin === "number" ? dados.xmin : -10;
+          const xmax = typeof dados.xmax === "number" ? dados.xmax : 10;
+          console.log("expressao:", expr, "xmin:", xmin, "xmax:", xmax);
+
+          const pontos = [];
+          const passo = (xmax - xmin) / 300;
           for (let x = xmin; x <= xmax; x += passo) {
-            // eslint-disable-next-line no-new-func
-            const y = new Function("x", `return ${dados.expressao}`)(x);
-            if (isFinite(y)) { xs.push(x.toFixed(2)); ys.push(parseFloat(y.toFixed(4))); }
+            try {
+              // eslint-disable-next-line no-new-func
+              const fn = new Function("x", `"use strict"; return (${expr});`);
+              const y = fn(x);
+              if (typeof y === "number" && isFinite(y)) {
+                pontos.push({ x: parseFloat(x.toFixed(3)), y: parseFloat(y.toFixed(4)) });
+              }
+            } catch(e) { /* ignora ponto inválido */ }
           }
-          datasets = [{ label: dados.label || dados.expressao, data: ys, borderColor:"#1a56db", backgroundColor:"rgba(26,86,219,0.08)", tension:0.4, pointRadius:0, fill: dados.fill ?? false }];
+          console.log("pontos calculados:", pontos.length);
+          if (pontos.length === 0) { console.log("ERRO: nenhum ponto calculado para", expr); return; }
+
           chartRef.current = new Chart(ctx, {
             type: "line",
-            data: { labels: xs, datasets },
+            data: { datasets: [{ label: dados.label || expr, data: pontos, borderColor:"#1a56db", backgroundColor:"rgba(26,86,219,0.08)", tension:0.1, pointRadius:0, borderWidth:2 }] },
             options: {
-              responsive:true, maintainAspectRatio:true,
+              responsive: true, maintainAspectRatio: true,
+              parsing: false,
               plugins: { legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } },
               scales: {
-                x: { title:{ display:true, text: dados.eixoX||"x" }, ticks:{ maxTicksLimit:11 } },
-                y: { title:{ display:true, text: dados.eixoY||"y" } }
+                x: { type:"linear", title:{ display:true, text: dados.eixoX||"x" } },
+                y: { type:"linear", title:{ display:true, text: dados.eixoY||"y" } }
               }
             }
           });
-        } catch(e) { console.error("Erro gráfico função:", e); }
+          console.log("Gráfico de função criado com sucesso!");
 
-      } else if (dados.tipo === "multiplas_funcoes" && dados.funcoes) {
-        const cores = ["#1a56db","#e11d48","#16a34a","#d97706","#7c3aed"];
-        const xmin = dados.xmin ?? -10;
-        const xmax = dados.xmax ?? 10;
-        const passo = (xmax - xmin) / 200;
-        const xs = [];
-        for (let x = xmin; x <= xmax; x += passo) xs.push(x.toFixed(2));
+        } else if (dados.tipo === "multiplas_funcoes") {
+          if (!dados.funcoes || !Array.isArray(dados.funcoes)) { console.log("funcoes inválidas"); return; }
+          const cores = ["#1a56db","#e11d48","#16a34a","#d97706","#7c3aed"];
+          const xmin = typeof dados.xmin === "number" ? dados.xmin : -10;
+          const xmax = typeof dados.xmax === "number" ? dados.xmax : 10;
+          const passo = (xmax - xmin) / 300;
 
-        datasets = dados.funcoes.map((f, i) => {
-          const ys = xs.map(x => {
-            try {
-              // eslint-disable-next-line no-new-func
-              const y = new Function("x", `return ${f.expressao}`)(parseFloat(x));
-              return isFinite(y) ? parseFloat(y.toFixed(4)) : null;
-            } catch { return null; }
-          });
-          return { label: f.label || f.expressao, data: ys, borderColor: cores[i % cores.length], backgroundColor:"transparent", tension:0.4, pointRadius:0 };
-        });
-        chartRef.current = new Chart(ctx, {
-          type:"line",
-          data:{ labels: xs, datasets },
-          options:{
-            responsive:true,
-            plugins:{ legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } },
-            scales:{
-              x:{ title:{ display:true, text: dados.eixoX||"x" }, ticks:{ maxTicksLimit:11 } },
-              y:{ title:{ display:true, text: dados.eixoY||"y" } }
+          const datasets = dados.funcoes.map((f, i) => {
+            const pontos = [];
+            for (let x = xmin; x <= xmax; x += passo) {
+              try {
+                // eslint-disable-next-line no-new-func
+                const fn = new Function("x", `"use strict"; return (${f.expressao});`);
+                const y = fn(x);
+                if (typeof y === "number" && isFinite(y)) {
+                  pontos.push({ x: parseFloat(x.toFixed(3)), y: parseFloat(y.toFixed(4)) });
+                }
+              } catch(e) { /* ignora */ }
             }
-          }
-        });
+            return { label: f.label || f.expressao, data: pontos, borderColor: cores[i % cores.length], backgroundColor:"transparent", tension:0.1, pointRadius:0, borderWidth:2 };
+          });
 
-      } else if (dados.tipo === "barras") {
-        chartRef.current = new Chart(ctx, {
-          type:"bar",
-          data:{ labels: dados.labels, datasets:[{ label: dados.label||"", data: dados.valores, backgroundColor:"rgba(26,86,219,0.7)", borderColor:"#1a56db", borderWidth:1 }] },
-          options:{ responsive:true, plugins:{ legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } }, scales:{ x:{ title:{ display:!!dados.eixoX, text: dados.eixoX||"" } }, y:{ title:{ display:!!dados.eixoY, text: dados.eixoY||"" } } } }
-        });
+          chartRef.current = new Chart(ctx, {
+            type:"line",
+            data:{ datasets },
+            options:{
+              responsive:true, parsing:false,
+              plugins:{ legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } },
+              scales:{
+                x:{ type:"linear", title:{ display:true, text: dados.eixoX||"x" } },
+                y:{ type:"linear", title:{ display:true, text: dados.eixoY||"y" } }
+              }
+            }
+          });
+          console.log("Gráfico múltiplas funções criado!");
 
-      } else if (dados.tipo === "dispersao") {
-        chartRef.current = new Chart(ctx, {
-          type:"scatter",
-          data:{ datasets:[{ label: dados.label||"", data: dados.pontos, backgroundColor:"#1a56db" }] },
-          options:{ responsive:true, plugins:{ title:{ display:!!dados.titulo, text: dados.titulo||"" } }, scales:{ x:{ title:{ display:!!dados.eixoX, text: dados.eixoX||"" } }, y:{ title:{ display:!!dados.eixoY, text: dados.eixoY||"" } } } }
-        });
+        } else if (dados.tipo === "barras") {
+          if (!dados.labels || !dados.valores) { console.log("labels/valores em falta"); return; }
+          chartRef.current = new Chart(ctx, {
+            type:"bar",
+            data:{ labels: dados.labels, datasets:[{ label: dados.label||"", data: dados.valores, backgroundColor:"rgba(26,86,219,0.7)", borderColor:"#1a56db", borderWidth:1 }] },
+            options:{ responsive:true, plugins:{ legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } }, scales:{ x:{ title:{ display:!!dados.eixoX, text: dados.eixoX||"" } }, y:{ title:{ display:!!dados.eixoY, text: dados.eixoY||"" } } } }
+          });
+          console.log("Gráfico de barras criado!");
+
+        } else if (dados.tipo === "dispersao") {
+          if (!dados.pontos || !Array.isArray(dados.pontos)) { console.log("pontos em falta"); return; }
+          chartRef.current = new Chart(ctx, {
+            type:"scatter",
+            data:{ datasets:[{ label: dados.label||"", data: dados.pontos, backgroundColor:"#1a56db", pointRadius:5 }] },
+            options:{ responsive:true, parsing:false, plugins:{ title:{ display:!!dados.titulo, text: dados.titulo||"" } }, scales:{ x:{ type:"linear", title:{ display:!!dados.eixoX, text: dados.eixoX||"" } }, y:{ type:"linear", title:{ display:!!dados.eixoY, text: dados.eixoY||"" } } } }
+          });
+          console.log("Gráfico de dispersão criado!");
+        } else {
+          console.log("Tipo desconhecido:", dados.tipo);
+        }
+      } catch(err) {
+        console.error("ERRO ao criar gráfico:", err);
       }
 
-      return () => { if (chartRef.current) chartRef.current.destroy(); };
-    }, [dados]);
+      return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+    }, [JSON.stringify(dados)]);
 
-    if (!dados) return null;
+    if (!dados || !dados.tipo) return null;
+
     return (
       <div className="grafico-container">
         {dados.titulo && <div className="grafico-titulo">{dados.titulo}</div>}
-        <canvas ref={canvasRef} style={{ maxHeight:320 }}/>
+        <canvas ref={canvasRef} style={{ maxHeight:340, width:"100%" }}/>
         {dados.descricao && <p style={{ fontSize:"9pt", color:"#555", marginTop:6 }}>{dados.descricao}</p>}
       </div>
     );
@@ -252,7 +283,7 @@
     const [loading, setLoading] = useState(false);
     const [erro, setErro]     = useState("");
     const [step, setStep]     = useState("form");
-    const [copiado, setCopiado] = useState(false);
+    const [jsonBruto, setJsonBruto] = useState("");
 
     const handle = (e) => setForm({...form, [e.target.name]: e.target.value});
     const artigoDocente  = form.generoProfessor === "F" ? "A Docente" : "O Docente";
@@ -603,6 +634,19 @@ Estrutura EXACTA do JSON:
           </div>
         </div>
         {copiado && <div style={{background:"#dcfce7",border:"1px solid #86efac",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#166534",fontWeight:600}}>✅ Copiado! Abra o Word → Ctrl+V</div>}
+
+        {/* Painel de diagnóstico do gráfico */}
+        {p?.quadroMural?.grafico && (
+          <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#92400e"}}>
+            <b>🔍 Diagnóstico — dados do gráfico recebidos:</b>
+            <pre style={{marginTop:6,overflow:"auto",maxHeight:120,fontSize:11}}>{JSON.stringify(p.quadroMural.grafico, null, 2)}</pre>
+          </div>
+        )}
+        {!p?.quadroMural?.grafico && (
+          <div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#b91c1c"}}>
+            ⚠️ <b>A IA não gerou dados de gráfico</b> — o campo "grafico" veio null ou vazio.
+          </div>
+        )}
         <div style={{background:"#fff",padding:"24px",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.07)"}}>
           <PlanoCompleto/>
         </div>
