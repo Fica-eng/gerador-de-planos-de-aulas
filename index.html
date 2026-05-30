@@ -416,7 +416,7 @@ Estrutura EXACTA do JSON:
 
       try {
         const res  = await fetch(WORKER_URL, {
-          method:"POST", headers:{"Content-Type":"application/json"},
+          method:"POST", headers:{"Content-Type":"application/json", "Authorization": `Bearer ${token}`},
           body: JSON.stringify({model:"claude-opus-4-8", max_tokens:8000, messages:[{role:"user",content:prompt}]}),
         });
         const data = await res.json();
@@ -548,12 +548,96 @@ Estrutura EXACTA do JSON:
       );
     };
 
+    // ── Ecrã de Login / Registo ─────────────────────────────────────────────
+    if (!professor) return (
+      <div style={{minHeight:"100vh", background:"linear-gradient(135deg,#0e3a8c,#1a56db)", display:"flex", alignItems:"center", justifyContent:"center", padding:16}}>
+        <div style={{background:"#fff", borderRadius:14, padding:"36px 32px", width:"100%", maxWidth:420, boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
+          <div style={{textAlign:"center", marginBottom:24}}>
+            <div style={{fontSize:40}}>📋</div>
+            <h2 style={{fontSize:22, fontWeight:700, color:"#0e3a8c", margin:"8px 0 4px"}}>Gerador de Plano de Aula</h2>
+            <p style={{fontSize:13, color:"#666"}}>Plataforma para professores moçambicanos</p>
+          </div>
+
+          {/* Abas Login / Registo */}
+          <div style={{display:"flex", borderRadius:8, overflow:"hidden", border:"1px solid #e5e7eb", marginBottom:22}}>
+            {[["login","🔐 Entrar"],["registar","📝 Registar"]].map(([k,l])=>(
+              <button key={k} onClick={()=>{setAuthStep(k);setAuthErro("");}}
+                style={{flex:1, padding:"10px 0", border:"none", cursor:"pointer", fontWeight:600, fontSize:14,
+                  background: authStep===k ? "#1a56db" : "#f9fafb",
+                  color: authStep===k ? "#fff" : "#555"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {/* Campos */}
+          <div style={{display:"flex", flexDirection:"column", gap:12}}>
+            {authStep === "registar" && (
+              <>
+                <div>
+                  <label style={{fontSize:12, fontWeight:600, color:"#444", display:"block", marginBottom:3}}>👤 Nome completo *</label>
+                  <input name="nome" placeholder="Ex: Filipe Carlitos Alfredo" value={authForm.nome} onChange={handleAuth}
+                    style={{width:"100%", padding:"9px 11px", border:"1px solid #ccc", borderRadius:7, fontSize:14, boxSizing:"border-box"}}/>
+                </div>
+                <div>
+                  <label style={{fontSize:12, fontWeight:600, color:"#444", display:"block", marginBottom:3}}>🏫 Escola</label>
+                  <input name="escola" placeholder="Ex: Escola Básica de Tobuè" value={authForm.escola} onChange={handleAuth}
+                    style={{width:"100%", padding:"9px 11px", border:"1px solid #ccc", borderRadius:7, fontSize:14, boxSizing:"border-box"}}/>
+                </div>
+                <div>
+                  <label style={{fontSize:12, fontWeight:600, color:"#444", display:"block", marginBottom:3}}>📐 Disciplina principal</label>
+                  <input name="disciplina" placeholder="Ex: Matemática" value={authForm.disciplina} onChange={handleAuth}
+                    style={{width:"100%", padding:"9px 11px", border:"1px solid #ccc", borderRadius:7, fontSize:14, boxSizing:"border-box"}}/>
+                </div>
+              </>
+            )}
+            <div>
+              <label style={{fontSize:12, fontWeight:600, color:"#444", display:"block", marginBottom:3}}>📧 Email *</label>
+              <input name="email" type="email" placeholder="professor@email.com" value={authForm.email} onChange={handleAuth}
+                style={{width:"100%", padding:"9px 11px", border:"1px solid #ccc", borderRadius:7, fontSize:14, boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:12, fontWeight:600, color:"#444", display:"block", marginBottom:3}}>🔑 Senha *</label>
+              <input name="senha" type="password" placeholder="Mínimo 6 caracteres" value={authForm.senha} onChange={handleAuth}
+                style={{width:"100%", padding:"9px 11px", border:"1px solid #ccc", borderRadius:7, fontSize:14, boxSizing:"border-box"}}/>
+            </div>
+          </div>
+
+          {authErro && (
+            <div style={{marginTop:12, padding:"10px 14px", background:"#fee2e2", border:"1px solid #fca5a5", borderRadius:7, color:"#b91c1c", fontSize:13}}>
+              ⚠️ {authErro}
+            </div>
+          )}
+
+          <button onClick={submitAuth} disabled={authLoad}
+            style={{marginTop:18, width:"100%", padding:13, background: authLoad?"#93c5fd":"#1a56db", color:"#fff", border:"none", borderRadius:8, fontSize:15, fontWeight:700, cursor: authLoad?"not-allowed":"pointer"}}>
+            {authLoad ? "⏳ A processar..." : authStep === "login" ? "🔐 Entrar" : "📝 Criar Conta"}
+          </button>
+
+          <p style={{textAlign:"center", fontSize:12, color:"#888", marginTop:16}}>
+            {authStep === "login" ? "Ainda não tem conta? " : "Já tem conta? "}
+            <span onClick={()=>{setAuthStep(authStep==="login"?"registar":"login");setAuthErro("");}}
+              style={{color:"#1a56db", cursor:"pointer", fontWeight:600}}>
+              {authStep === "login" ? "Registar aqui" : "Entrar aqui"}
+            </span>
+          </p>
+        </div>
+      </div>
+    );
+
     // ── Formulário ──────────────────────────────────────────────────────────
     if (step === "form") return (
       <div style={{maxWidth:840,margin:"0 auto",padding:"20px 14px"}}>
-        <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",borderRadius:10,padding:"18px 22px",marginBottom:22,color:"#fff"}}>
-          <div style={{fontSize:22,fontWeight:700}}>📋 Gerador de Plano de Aula com IA</div>
-          <div style={{fontSize:13,opacity:.85,marginTop:4}}>Preencha os dados e a IA gera o plano completo com gráficos</div>
+        {/* Cabeçalho com professor logado */}
+        <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",borderRadius:10,padding:"14px 22px",marginBottom:22,color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+          <div>
+            <div style={{fontSize:20,fontWeight:700}}>📋 Gerador de Plano de Aula com IA</div>
+            <div style={{fontSize:13,opacity:.85,marginTop:2}}>Olá, <b>{professor.nome}</b> 👋</div>
+          </div>
+          <button onClick={sair}
+            style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>
+            🚪 Sair
+          </button>
         </div>
         <div style={{background:"#fff",borderRadius:10,padding:22,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
