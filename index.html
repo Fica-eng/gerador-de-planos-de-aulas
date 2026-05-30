@@ -361,10 +361,52 @@ Estrutura EXACTA:
           const start = raw.indexOf("{"), end = raw.lastIndexOf("}");
           if (start===-1||end===-1) throw new Error("Resposta inválida da IA.");
           const parsed = JSON.parse(raw.substring(start, end+1));
-          parsed.disciplina = form.disciplina; // guardar disciplina no plano
-          setPlano(parsed);
+          parsed.disciplina = form.disciplina;
+
+          // Garantir que todos os campos existem com valores por defeito
+          const safe = (v, def) => v !== undefined && v !== null ? v : def;
+          const safeArr = (v) => Array.isArray(v) ? v : [];
+          const safeSection = (s) => s ? {
+            tempo: safe(s.tempo, "5"),
+            funcaoDidactica: safe(s.funcaoDidactica, ""),
+            conteudo: safe(s.conteudo, ""),
+            competencias: safe(s.competencias, ""),
+            actProfessor: safeArr(s.actProfessor),
+            actAluno: safeArr(s.actAluno),
+            metodo: safe(s.metodo, ""),
+            meios: safe(s.meios, ""),
+          } : { tempo:"0", funcaoDidactica:"", conteudo:"", competencias:"", actProfessor:[], actAluno:[], metodo:"", meios:"" };
+
+          const planoSeguro = {
+            disciplina: parsed.disciplina,
+            objectivosCognitivos: safeArr(parsed.objectivosCognitivos),
+            objectivosPsicomotores: safeArr(parsed.objectivosPsicomotores),
+            objectivosAfectivos: safeArr(parsed.objectivosAfectivos),
+            introducao: safeSection(parsed.introducao),
+            mediacao: safeSection(parsed.mediacao),
+            dominio: safeSection(parsed.dominio),
+            controle: safeSection(parsed.controle),
+            quadroMural: {
+              definicao: safe(parsed.quadroMural?.definicao, ""),
+              notacao: safe(parsed.quadroMural?.notacao, ""),
+              exemplos: safeArr(parsed.quadroMural?.exemplos),
+              desenvolvimento: safeArr(parsed.quadroMural?.desenvolvimento),
+              propriedades: safeArr(parsed.quadroMural?.propriedades),
+              exercicios: safeArr(parsed.quadroMural?.exercicios),
+              resolucaoExercicios: safeArr(parsed.quadroMural?.resolucaoExercicios),
+              tpc: safeArr(parsed.quadroMural?.tpc),
+              resolucaoTpc: safeArr(parsed.quadroMural?.resolucaoTpc),
+            }
+          };
+
+          console.log("Plano gerado:", JSON.stringify(planoSeguro, null, 2));
+          setPlano(planoSeguro);
           setStep("preview");
-        } catch(err) { setErro("Erro: " + err.message); }
+        } catch(err) {
+          console.error("Erro completo:", err);
+          console.error("Raw response:", raw);
+          setErro("Erro: " + err.message + " — Abra a consola do browser (F12) para mais detalhes.");
+        }
         setLoading(false);
       };
 
@@ -376,7 +418,8 @@ Estrutura EXACTA:
       // ── PLANO COMPLETO ─────────────────────────────────────────────────────
       const PlanoCompleto = () => {
         useMathJax(plano);
-        if (!p) return null;
+        if (!p) return <div style={{padding:20, color:"red"}}>Nenhum plano gerado.</div>;
+        if (!p.introducao) return <div style={{padding:20, color:"red"}}>Estrutura do plano inválida. Tente gerar novamente.</div>;
         return (
           <div id="plano-imprimivel" style={{ fontFamily:"Arial,sans-serif", color:"#000" }}>
 
