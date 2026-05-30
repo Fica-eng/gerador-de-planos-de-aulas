@@ -69,10 +69,10 @@
     };
 
     // Renderiza MathJax só para disciplinas exactas
-    function useMathJax(dep) {
+    function useMathJax(dep, disciplina) {
       useEffect(() => {
         const disciplinasLatex = ["matemática","matematica","física","fisica","química","quimica"];
-        const usaLatex = disciplinasLatex.some(d => (plano?.disciplina||form?.disciplina||"").toLowerCase().includes(d));
+        const usaLatex = disciplinasLatex.some(d => (disciplina||"").toLowerCase().includes(d));
         if (usaLatex && window.MathJax && window.MathJax.typesetPromise) {
           window.MathJax.typesetPromise();
         }
@@ -80,8 +80,8 @@
     }
 
     // Componente Quadro Mural estruturado
-    function QuadroMural({ qm, tema }) {
-      useMathJax(qm);
+    function QuadroMural({ qm, tema, disciplina }) {
+      useMathJax(qm, disciplina);
       if (!qm) return null;
       return (
         <div className="qm-body">
@@ -417,7 +417,7 @@ Estrutura EXACTA:
 
       // ── PLANO COMPLETO ─────────────────────────────────────────────────────
       const PlanoCompleto = () => {
-        useMathJax(plano);
+        useMathJax(plano, p?.disciplina);
         if (!p) return <div style={{padding:20, color:"red"}}>Nenhum plano gerado.</div>;
         if (!p.introducao) return <div style={{padding:20, color:"red"}}>Estrutura do plano inválida. Tente gerar novamente.</div>;
         return (
@@ -506,7 +506,7 @@ Estrutura EXACTA:
               <div style={{ textAlign:"center", fontSize:"11pt", fontWeight:"bold", marginBottom:14, color:"#1a56db" }}>
                 Tema: {d.tema}
               </div>
-              <QuadroMural qm={p.quadroMural} tema={d.tema}/>
+              <QuadroMural qm={p.quadroMural} tema={d.tema} disciplina={p.disciplina}/>
             </div>
 
           </div>
