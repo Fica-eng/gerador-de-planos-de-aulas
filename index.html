@@ -68,10 +68,12 @@
       directorAdjunto: "", tema: "", unidadeTematica: "",
     };
 
-    // Renderiza MathJax após actualizações do DOM
+    // Renderiza MathJax só para disciplinas exactas
     function useMathJax(dep) {
       useEffect(() => {
-        if (window.MathJax && window.MathJax.typesetPromise) {
+        const disciplinasLatex = ["matemática","matematica","física","fisica","química","quimica"];
+        const usaLatex = disciplinasLatex.some(d => (plano?.disciplina||form?.disciplina||"").toLowerCase().includes(d));
+        if (usaLatex && window.MathJax && window.MathJax.typesetPromise) {
           window.MathJax.typesetPromise();
         }
       }, [dep]);
@@ -249,9 +251,15 @@
         }
         setErro(""); setLoading(true);
 
+        const disciplinasLatex = ["matemática","matematica","física","fisica","química","quimica"];
+        const usaLatex = disciplinasLatex.some(d => (form.disciplina||"").toLowerCase().includes(d));
+
         const prompt = `Cria um plano de aula completo para "${form.tema}", disciplina ${form.disciplina||"Matemática"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano (currículo INDE/MINED).
 
-Responde SOMENTE com JSON puro sem markdown. Usa LaTeX para fórmulas matemáticas (ex: $A - B$, $x \\in A$, $\\emptyset$).
+Responde SOMENTE com JSON puro sem markdown. ${usaLatex
+  ? "IMPORTANTE: Esta disciplina é exactamente Matemática, Física ou Química — usa obrigatoriamente LaTeX para TODAS as fórmulas, notações e símbolos (ex: $A - B$, $x \\\\in A$, $\\\\emptyset$, $F = ma$, $H_2O$). Envolve sempre expressões matemáticas em $...$ (inline) ou $...$ (bloco)."
+  : "IMPORTANTE: Esta é uma disciplina teórica — NÃO uses LaTeX. Escreve tudo em texto simples, sem símbolos matemáticos especiais."
+}
 
 Estrutura EXACTA:
 {
@@ -352,7 +360,9 @@ Estrutura EXACTA:
           const raw = data.content.map(i => i.text||"").join("").trim();
           const start = raw.indexOf("{"), end = raw.lastIndexOf("}");
           if (start===-1||end===-1) throw new Error("Resposta inválida da IA.");
-          setPlano(JSON.parse(raw.substring(start, end+1)));
+          const parsed = JSON.parse(raw.substring(start, end+1));
+          parsed.disciplina = form.disciplina; // guardar disciplina no plano
+          setPlano(parsed);
           setStep("preview");
         } catch(err) { setErro("Erro: " + err.message); }
         setLoading(false);
