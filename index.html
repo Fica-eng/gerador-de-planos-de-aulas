@@ -7,7 +7,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <!-- MathJax para fórmulas LaTeX -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <!-- MathJax -->
   <script>
     window.MathJax = {
       tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
@@ -18,618 +19,595 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; background: #f3f4f6; min-height: 100vh; }
-
-    /* Impressão */
     @media print {
       .noprint { display: none !important; }
       body { background: #fff; }
-      #plano-imprimivel { margin: 0; }
-
-      /* Páginas 1 e 2: landscape */
-      .pagina-landscape {
-        page-break-after: always;
-        size: A4 landscape;
-      }
-      /* Página 3: portrait */
-      .pagina-portrait {
-        size: A4 portrait;
-      }
-      @page landscape { size: A4 landscape; margin: 1cm; }
-      @page portrait  { size: A4 portrait;  margin: 1.5cm; }
+      .pagina-landscape { page-break-after: always; }
+      .pagina-portrait  { page-break-before: always; }
+      @page { size: A4 landscape; margin: 1cm; }
+      @page portrait { size: A4 portrait; margin: 1.5cm; }
+      canvas { max-width: 100% !important; }
     }
-
-    /* Quadro Mural */
-    .qm-section { margin-bottom: 18px; }
-    .qm-titulo { font-size: 13pt; font-weight: bold; border-bottom: 2px solid #1a56db; padding-bottom: 3px; margin-bottom: 8px; color: #1a56db; }
-    .qm-subtitulo { font-size: 11pt; font-weight: bold; margin: 10px 0 4px; }
-    .qm-body { font-size: 10pt; line-height: 1.6; }
-    .qm-body ul { padding-left: 20px; margin: 4px 0; }
-    .qm-body ol { padding-left: 20px; margin: 4px 0; }
+    .qm-section { margin-bottom: 16px; }
+    .qm-subtitulo { font-size: 11pt; font-weight: bold; margin: 10px 0 4px; color: #1a3a6b; }
+    .qm-body { font-size: 10pt; line-height: 1.7; }
+    .qm-body ul, .qm-body ol { padding-left: 20px; margin: 4px 0; }
     .qm-body li { margin-bottom: 4px; }
-    .qm-notacao { background: #f0f7ff; border-left: 4px solid #1a56db; padding: 6px 10px; margin: 6px 0; font-family: monospace; font-size: 10pt; }
-    .qm-exemplo { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; margin: 6px 0; }
-    .qm-propriedades { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 8px 12px; margin: 6px 0; }
-    .qm-exercicios { background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 8px 12px; margin: 6px 0; }
-    .qm-resolucao { background: #fdf4ff; border: 1px solid #d8b4fe; border-radius: 6px; padding: 8px 12px; margin: 6px 0; }
-    .qm-tpc { background: #fff1f2; border: 1px solid #fda4af; border-radius: 6px; padding: 8px 12px; margin: 6px 0; }
+    .qm-notacao  { background:#f0f7ff; border-left:4px solid #1a56db; padding:6px 10px; margin:6px 0; font-family:monospace; }
+    .qm-exemplo  { background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:8px 12px; margin:6px 0; }
+    .qm-propriedades { background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:8px 12px; margin:6px 0; }
+    .qm-exercicios   { background:#f0fdf4; border:1px solid #86efac; border-radius:6px; padding:8px 12px; margin:6px 0; }
+    .qm-resolucao    { background:#fdf4ff; border:1px solid #d8b4fe; border-radius:6px; padding:8px 12px; margin:6px 0; }
+    .qm-tpc          { background:#fff1f2; border:1px solid #fda4af; border-radius:6px; padding:8px 12px; margin:6px 0; }
+    .grafico-container { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin:12px 0; text-align:center; }
+    .grafico-titulo { font-weight:bold; font-size:11pt; margin-bottom:8px; color:#1a3a6b; }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
+  const { useState, useEffect, useRef } = React;
 
-  <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+  const WORKER_URL = "https://plano-aula-backend-production.up.railway.app/gerar";
 
-    const WORKER_URL = "https://plano-aula-backend-production.up.railway.app/gerar";
+  const initialForm = {
+    escola:"", data:"", curso:"Diurno", duracao:"45",
+    classe:"", turma:"", professor:"", generoProfessor:"M", disciplina:"",
+    directorAdjunto:"", tema:"", unidadeTematica:"",
+  };
 
-    const initialForm = {
-      escola: "", data: "", curso: "Diurno", duracao: "45",
-      classe: "", turma: "", professor: "", generoProfessor: "M", disciplina: "",
-      directorAdjunto: "", tema: "", unidadeTematica: "",
+  // ── MathJax ──────────────────────────────────────────────────────────────
+  function useMathJax(dep, disciplina) {
+    useEffect(() => {
+      const disc = ["matemática","matematica","física","fisica","química","quimica"];
+      if (disc.some(d => (disciplina||"").toLowerCase().includes(d))
+          && window.MathJax?.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+    }, [dep]);
+  }
+
+  // ── Componente de Gráfico ─────────────────────────────────────────────────
+  function Grafico({ dados }) {
+    const canvasRef = useRef(null);
+    const chartRef  = useRef(null);
+
+    useEffect(() => {
+      if (!dados || !canvasRef.current) return;
+      if (chartRef.current) chartRef.current.destroy();
+
+      const ctx = canvasRef.current.getContext("2d");
+
+      // Gerar pontos para função se vier expressão
+      let datasets = [];
+      if (dados.tipo === "funcao" && dados.expressao) {
+        try {
+          const xs = [];
+          const ys = [];
+          const xmin = dados.xmin ?? -10;
+          const xmax = dados.xmax ?? 10;
+          const passo = (xmax - xmin) / 200;
+          for (let x = xmin; x <= xmax; x += passo) {
+            // eslint-disable-next-line no-new-func
+            const y = new Function("x", `return ${dados.expressao}`)(x);
+            if (isFinite(y)) { xs.push(x.toFixed(2)); ys.push(parseFloat(y.toFixed(4))); }
+          }
+          datasets = [{ label: dados.label || dados.expressao, data: ys, borderColor:"#1a56db", backgroundColor:"rgba(26,86,219,0.08)", tension:0.4, pointRadius:0, fill: dados.fill ?? false }];
+          chartRef.current = new Chart(ctx, {
+            type: "line",
+            data: { labels: xs, datasets },
+            options: {
+              responsive:true, maintainAspectRatio:true,
+              plugins: { legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } },
+              scales: {
+                x: { title:{ display:true, text: dados.eixoX||"x" }, ticks:{ maxTicksLimit:11 } },
+                y: { title:{ display:true, text: dados.eixoY||"y" } }
+              }
+            }
+          });
+        } catch(e) { console.error("Erro gráfico função:", e); }
+
+      } else if (dados.tipo === "multiplas_funcoes" && dados.funcoes) {
+        const cores = ["#1a56db","#e11d48","#16a34a","#d97706","#7c3aed"];
+        const xmin = dados.xmin ?? -10;
+        const xmax = dados.xmax ?? 10;
+        const passo = (xmax - xmin) / 200;
+        const xs = [];
+        for (let x = xmin; x <= xmax; x += passo) xs.push(x.toFixed(2));
+
+        datasets = dados.funcoes.map((f, i) => {
+          const ys = xs.map(x => {
+            try {
+              // eslint-disable-next-line no-new-func
+              const y = new Function("x", `return ${f.expressao}`)(parseFloat(x));
+              return isFinite(y) ? parseFloat(y.toFixed(4)) : null;
+            } catch { return null; }
+          });
+          return { label: f.label || f.expressao, data: ys, borderColor: cores[i % cores.length], backgroundColor:"transparent", tension:0.4, pointRadius:0 };
+        });
+        chartRef.current = new Chart(ctx, {
+          type:"line",
+          data:{ labels: xs, datasets },
+          options:{
+            responsive:true,
+            plugins:{ legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } },
+            scales:{
+              x:{ title:{ display:true, text: dados.eixoX||"x" }, ticks:{ maxTicksLimit:11 } },
+              y:{ title:{ display:true, text: dados.eixoY||"y" } }
+            }
+          }
+        });
+
+      } else if (dados.tipo === "barras") {
+        chartRef.current = new Chart(ctx, {
+          type:"bar",
+          data:{ labels: dados.labels, datasets:[{ label: dados.label||"", data: dados.valores, backgroundColor:"rgba(26,86,219,0.7)", borderColor:"#1a56db", borderWidth:1 }] },
+          options:{ responsive:true, plugins:{ legend:{ display:true }, title:{ display:!!dados.titulo, text: dados.titulo||"" } }, scales:{ x:{ title:{ display:!!dados.eixoX, text: dados.eixoX||"" } }, y:{ title:{ display:!!dados.eixoY, text: dados.eixoY||"" } } } }
+        });
+
+      } else if (dados.tipo === "dispersao") {
+        chartRef.current = new Chart(ctx, {
+          type:"scatter",
+          data:{ datasets:[{ label: dados.label||"", data: dados.pontos, backgroundColor:"#1a56db" }] },
+          options:{ responsive:true, plugins:{ title:{ display:!!dados.titulo, text: dados.titulo||"" } }, scales:{ x:{ title:{ display:!!dados.eixoX, text: dados.eixoX||"" } }, y:{ title:{ display:!!dados.eixoY, text: dados.eixoY||"" } } } }
+        });
+      }
+
+      return () => { if (chartRef.current) chartRef.current.destroy(); };
+    }, [dados]);
+
+    if (!dados) return null;
+    return (
+      <div className="grafico-container">
+        {dados.titulo && <div className="grafico-titulo">{dados.titulo}</div>}
+        <canvas ref={canvasRef} style={{ maxHeight:320 }}/>
+        {dados.descricao && <p style={{ fontSize:"9pt", color:"#555", marginTop:6 }}>{dados.descricao}</p>}
+      </div>
+    );
+  }
+
+  // ── Quadro Mural ──────────────────────────────────────────────────────────
+  function QuadroMural({ qm, tema, disciplina }) {
+    useMathJax(qm, disciplina);
+    if (!qm) return null;
+    return (
+      <div className="qm-body">
+        {qm.definicao && <div className="qm-section"><div className="qm-subtitulo">Definição</div><p>{qm.definicao}</p></div>}
+        {qm.notacao && <div className="qm-section"><div className="qm-notacao" dangerouslySetInnerHTML={{__html: qm.notacao}}/></div>}
+
+        {/* Gráfico principal (se existir) */}
+        {qm.grafico && <Grafico dados={qm.grafico}/>}
+
+        {qm.exemplos?.length > 0 && (
+          <div className="qm-section">
+            <div className="qm-subtitulo">Exemplos</div>
+            <div className="qm-exemplo">
+              <ol>{qm.exemplos.map((e,i)=><li key={i} dangerouslySetInnerHTML={{__html:e}}/>)}</ol>
+            </div>
+            {qm.graficoExemplos && <Grafico dados={qm.graficoExemplos}/>}
+          </div>
+        )}
+
+        {qm.desenvolvimento?.length > 0 && (
+          <div className="qm-section">
+            {qm.desenvolvimento.map((bloco,i)=>(
+              <div key={i} style={{marginBottom:10}}>
+                {bloco.subtitulo && <div className="qm-subtitulo">{bloco.subtitulo}</div>}
+                {bloco.texto && <p dangerouslySetInnerHTML={{__html:bloco.texto}}/>}
+                {bloco.notacao && <div className="qm-notacao" dangerouslySetInnerHTML={{__html:bloco.notacao}}/>}
+                {bloco.grafico && <Grafico dados={bloco.grafico}/>}
+                {bloco.exemplos?.length > 0 && (
+                  <div className="qm-exemplo">
+                    <ol>{bloco.exemplos.map((e,j)=><li key={j} dangerouslySetInnerHTML={{__html:e}}/>)}</ol>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {qm.propriedades?.length > 0 && (
+          <div className="qm-section">
+            <div className="qm-subtitulo">Propriedades Importantes</div>
+            <div className="qm-propriedades"><ol>{qm.propriedades.map((p,i)=><li key={i} dangerouslySetInnerHTML={{__html:p}}/>)}</ol></div>
+          </div>
+        )}
+
+        {qm.exercicios?.length > 0 && (
+          <div className="qm-section">
+            <div className="qm-subtitulo">Exercícios</div>
+            <div className="qm-exercicios"><ol>{qm.exercicios.map((e,i)=><li key={i} dangerouslySetInnerHTML={{__html:e}}/>)}</ol></div>
+            {qm.graficoExercicios && <Grafico dados={qm.graficoExercicios}/>}
+          </div>
+        )}
+
+        {qm.resolucaoExercicios?.length > 0 && (
+          <div className="qm-section">
+            <div className="qm-subtitulo">Resolução</div>
+            <div className="qm-resolucao"><ol>{qm.resolucaoExercicios.map((r,i)=><li key={i} dangerouslySetInnerHTML={{__html:r}}/>)}</ol></div>
+          </div>
+        )}
+
+        {qm.tpc?.length > 0 && (
+          <div className="qm-section">
+            <div className="qm-subtitulo">TPC</div>
+            <div className="qm-tpc"><ol>{qm.tpc.map((t,i)=><li key={i} dangerouslySetInnerHTML={{__html:t}}/>)}</ol></div>
+          </div>
+        )}
+
+        {qm.resolucaoTpc?.length > 0 && (
+          <div className="qm-section">
+            <div className="qm-subtitulo">Resolução do TPC</div>
+            <div className="qm-resolucao"><ol>{qm.resolucaoTpc.map((r,i)=><li key={i} dangerouslySetInnerHTML={{__html:r}}/>)}</ol></div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── App Principal ─────────────────────────────────────────────────────────
+  function App() {
+    const [form, setForm]     = useState(initialForm);
+    const [plano, setPlano]   = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [erro, setErro]     = useState("");
+    const [step, setStep]     = useState("form");
+    const [copiado, setCopiado] = useState(false);
+
+    const handle = (e) => setForm({...form, [e.target.name]: e.target.value});
+    const artigoDocente  = form.generoProfessor === "F" ? "A Docente" : "O Docente";
+    const labelProfessor = form.generoProfessor === "F" ? "👩‍🏫 Nome da Professora" : "👨‍🏫 Nome do Professor";
+
+    const descarregarWord = () => {
+      const el = document.getElementById("plano-imprimivel");
+      if (!el) return;
+      // Converter canvas em imagens para o Word
+      const canvases = el.querySelectorAll("canvas");
+      const imgs = [];
+      canvases.forEach(c => {
+        const img = document.createElement("img");
+        img.src = c.toDataURL("image/png");
+        img.style.maxWidth = "100%";
+        imgs.push({canvas: c, img});
+        c.parentNode.insertBefore(img, c);
+        c.style.display = "none";
+      });
+      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:w="urn:schemas-microsoft-com:office:word"
+        xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="utf-8"/>
+        <style>
+          body{font-family:Arial,sans-serif;font-size:10pt;margin:1cm}
+          h2,h3{text-align:center} table{width:100%;border-collapse:collapse;margin-bottom:10px}
+          th{background:#ccc;border:1px solid #000;padding:5px;text-align:center;font-weight:bold}
+          td{border:1px solid #000;padding:5px;vertical-align:top;font-size:9pt}
+          .qm-subtitulo{font-weight:bold;margin:8px 0 3px}
+          .qm-notacao{background:#f0f7ff;padding:5px 8px;margin:4px 0;font-family:monospace}
+          .qm-exemplo,.qm-propriedades,.qm-exercicios,.qm-resolucao,.qm-tpc{padding:6px 10px;margin:4px 0;border:1px solid #ccc}
+          img{max-width:100%}
+        </style></head>
+        <body>${el.innerHTML}</body></html>`;
+      // Restaurar canvases
+      imgs.forEach(({canvas, img}) => { canvas.style.display = ""; img.remove(); });
+      const blob = new Blob(["\ufeff"+html], {type:"application/msword;charset=utf-8"});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = `Plano_${(form.tema||"aula").replace(/\s+/g,"_")}.doc`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
     };
 
-    // Renderiza MathJax só para disciplinas exactas
-    function useMathJax(dep, disciplina) {
-      useEffect(() => {
-        const disciplinasLatex = ["matemática","matematica","física","fisica","química","quimica"];
-        const usaLatex = disciplinasLatex.some(d => (disciplina||"").toLowerCase().includes(d));
-        if (usaLatex && window.MathJax && window.MathJax.typesetPromise) {
-          window.MathJax.typesetPromise();
-        }
-      }, [dep]);
-    }
+    const copiarHTML = () => {
+      const el = document.getElementById("plano-imprimivel");
+      if (!el) return;
+      const blob     = new Blob([`<html><body style="font-family:Arial;font-size:10pt;margin:1cm">${el.innerHTML}</body></html>`], {type:"text/html"});
+      const textBlob = new Blob([el.innerText], {type:"text/plain"});
+      navigator.clipboard.write([new ClipboardItem({"text/html":blob,"text/plain":textBlob})])
+        .then(()=>{ setCopiado(true); setTimeout(()=>setCopiado(false),3000); })
+        .catch(()=>{
+          const r = document.createRange(); r.selectNode(el);
+          window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+          document.execCommand("copy"); window.getSelection().removeAllRanges();
+          setCopiado(true); setTimeout(()=>setCopiado(false),3000);
+        });
+    };
 
-    // Componente Quadro Mural estruturado
-    function QuadroMural({ qm, tema, disciplina }) {
-      useMathJax(qm, disciplina);
-      if (!qm) return null;
-      return (
-        <div className="qm-body">
-          {/* Definição */}
-          {qm.definicao && (
-            <div className="qm-section">
-              <div className="qm-subtitulo">Definição</div>
-              <p>{qm.definicao}</p>
-            </div>
-          )}
-
-          {/* Notação */}
-          {qm.notacao && (
-            <div className="qm-section">
-              <div className="qm-notacao" dangerouslySetInnerHTML={{ __html: qm.notacao }}/>
-            </div>
-          )}
-
-          {/* Exemplos */}
-          {qm.exemplos && qm.exemplos.length > 0 && (
-            <div className="qm-section">
-              <div className="qm-subtitulo">Exemplos</div>
-              <div className="qm-exemplo">
-                <ol>{qm.exemplos.map((e,i)=><li key={i} dangerouslySetInnerHTML={{__html: e}}/>)}</ol>
-              </div>
-            </div>
-          )}
-
-          {/* Desenvolvimento / conceitos adicionais */}
-          {qm.desenvolvimento && qm.desenvolvimento.length > 0 && (
-            <div className="qm-section">
-              {qm.desenvolvimento.map((bloco, i) => (
-                <div key={i}>
-                  {bloco.subtitulo && <div className="qm-subtitulo">{bloco.subtitulo}</div>}
-                  {bloco.texto && <p dangerouslySetInnerHTML={{__html: bloco.texto}}/>}
-                  {bloco.notacao && <div className="qm-notacao" dangerouslySetInnerHTML={{__html: bloco.notacao}}/>}
-                  {bloco.exemplos && (
-                    <div className="qm-exemplo">
-                      <ol>{bloco.exemplos.map((e,j)=><li key={j} dangerouslySetInnerHTML={{__html: e}}/>)}</ol>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Propriedades */}
-          {qm.propriedades && qm.propriedades.length > 0 && (
-            <div className="qm-section">
-              <div className="qm-subtitulo">Propriedades Importantes</div>
-              <div className="qm-propriedades">
-                <ol>{qm.propriedades.map((p,i)=><li key={i} dangerouslySetInnerHTML={{__html: p}}/>)}</ol>
-              </div>
-            </div>
-          )}
-
-          {/* Exercícios */}
-          {qm.exercicios && qm.exercicios.length > 0 && (
-            <div className="qm-section">
-              <div className="qm-subtitulo">Exercícios</div>
-              <div className="qm-exercicios">
-                <ol>{qm.exercicios.map((e,i)=><li key={i} dangerouslySetInnerHTML={{__html: e}}/>)}</ol>
-              </div>
-            </div>
-          )}
-
-          {/* Resolução dos exercícios */}
-          {qm.resolucaoExercicios && qm.resolucaoExercicios.length > 0 && (
-            <div className="qm-section">
-              <div className="qm-subtitulo">Resolução</div>
-              <div className="qm-resolucao">
-                <ol>{qm.resolucaoExercicios.map((r,i)=><li key={i} dangerouslySetInnerHTML={{__html: r}}/>)}</ol>
-              </div>
-            </div>
-          )}
-
-          {/* TPC */}
-          {qm.tpc && qm.tpc.length > 0 && (
-            <div className="qm-section">
-              <div className="qm-subtitulo">TPC</div>
-              <div className="qm-tpc">
-                <ol>{qm.tpc.map((t,i)=><li key={i} dangerouslySetInnerHTML={{__html: t}}/>)}</ol>
-              </div>
-            </div>
-          )}
-
-          {/* Resolução do TPC */}
-          {qm.resolucaoTpc && qm.resolucaoTpc.length > 0 && (
-            <div className="qm-section">
-              <div className="qm-subtitulo">Resolução do TPC</div>
-              <div className="qm-resolucao">
-                <ol>{qm.resolucaoTpc.map((r,i)=><li key={i} dangerouslySetInnerHTML={{__html: r}}/>)}</ol>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    function App() {
-      const [form, setForm] = useState(initialForm);
-      const [plano, setPlano] = useState(null);
-      const [loading, setLoading] = useState(false);
-      const [erro, setErro] = useState("");
-      const [step, setStep] = useState("form");
-      const [copiado, setCopiado] = useState(false);
-
-      const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-      const artigoDocente = form.generoProfessor === "F" ? "A Docente" : "O Docente";
-      const labelProfessor = form.generoProfessor === "F" ? "👩‍🏫 Nome da Professora" : "👨‍🏫 Nome do Professor";
-
-      const descarregarWord = () => {
-        const el = document.getElementById("plano-imprimivel");
-        if (!el) return;
-        const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
-          xmlns:w="urn:schemas-microsoft-com:office:word"
-          xmlns="http://www.w3.org/TR/REC-html40">
-          <head><meta charset="utf-8"/>
-          <style>
-            body{font-family:Arial,sans-serif;font-size:11pt;margin:1cm}
-            h2,h3{text-align:center} table{width:100%;border-collapse:collapse;margin-bottom:10px}
-            th{background:#ccc;border:1px solid #000;padding:5px;text-align:center;font-weight:bold}
-            td{border:1px solid #000;padding:5px;vertical-align:top;font-size:9pt}
-            .qm-subtitulo{font-weight:bold;margin:8px 0 3px;font-size:11pt}
-            .qm-notacao{background:#f0f7ff;padding:5px 8px;margin:4px 0;font-family:monospace}
-            .qm-exemplo{background:#f9fafb;border:1px solid #ccc;padding:6px 10px;margin:4px 0}
-            .qm-propriedades{background:#fffbeb;border:1px solid #fcd34d;padding:6px 10px;margin:4px 0}
-            .qm-exercicios{background:#f0fdf4;border:1px solid #86efac;padding:6px 10px;margin:4px 0}
-            .qm-resolucao{background:#fdf4ff;border:1px solid #d8b4fe;padding:6px 10px;margin:4px 0}
-            .qm-tpc{background:#fff1f2;border:1px solid #fda4af;padding:6px 10px;margin:4px 0}
-            @page landscape{size:29.7cm 21cm;margin:1cm}
-            @page portrait{size:21cm 29.7cm;margin:1.5cm}
-            .pg-landscape{page:landscape}
-            .pg-portrait{page:portrait}
-          </style></head>
-          <body>${el.innerHTML}</body></html>`;
-        const blob = new Blob(["\ufeff" + html], { type: "application/msword;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Plano_${(form.tema||"aula").replace(/\s+/g,"_")}.doc`;
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a); URL.revokeObjectURL(url);
-      };
-
-      const copiarHTML = () => {
-        const el = document.getElementById("plano-imprimivel");
-        if (!el) return;
-        const blob = new Blob([`<html><body style="font-family:Arial;font-size:10pt;margin:1cm">${el.innerHTML}</body></html>`], { type: "text/html" });
-        const textBlob = new Blob([el.innerText], { type: "text/plain" });
-        navigator.clipboard.write([new ClipboardItem({ "text/html": blob, "text/plain": textBlob })])
-          .then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 3000); })
-          .catch(() => {
-            const range = document.createRange();
-            range.selectNode(el);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(range);
-            document.execCommand("copy");
-            window.getSelection().removeAllRanges();
-            setCopiado(true); setTimeout(() => setCopiado(false), 3000);
-          });
-      };
-
-      const gerar = async () => {
-        if (!form.tema || !form.escola || !form.professor) {
-          setErro("Preencha pelo menos: Escola, Professor(a) e Tema."); return;
-        }
-        setErro(""); setLoading(true);
-
-        const disciplinasLatex = ["matemática","matematica","física","fisica","química","quimica"];
-        const usaLatex = disciplinasLatex.some(d => (form.disciplina||"").toLowerCase().includes(d));
-
-        const prompt = `Cria um plano de aula completo para "${form.tema}", disciplina ${form.disciplina||"Matemática"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano (currículo INDE/MINED).
-
-Responde SOMENTE com JSON puro sem markdown. ${usaLatex
-  ? "IMPORTANTE: Esta disciplina é exactamente Matemática, Física ou Química — usa obrigatoriamente LaTeX para TODAS as fórmulas, notações e símbolos (ex: $A - B$, $x \\\\in A$, $\\\\emptyset$, $F = ma$, $H_2O$). Envolve sempre expressões matemáticas em $...$ (inline) ou $...$ (bloco)."
-  : "IMPORTANTE: Esta é uma disciplina teórica — NÃO uses LaTeX. Escreve tudo em texto simples, sem símbolos matemáticos especiais."
-}
-
-Estrutura EXACTA:
-{
-  "objectivosCognitivos": ["...", "...", "..."],
-  "objectivosPsicomotores": ["...", "..."],
-  "objectivosAfectivos": ["...", "..."],
-  "introducao": {
-    "tempo": "5",
-    "funcaoDidactica": "Introdução e Motivação",
-    "conteudo": "...",
-    "competencias": "...",
-    "actProfessor": ["...", "...", "..."],
-    "actAluno": ["...", "...", "..."],
-    "metodo": "Elaboração conjunta",
-    "meios": "Quadro, marcador, caderno, apagador"
-  },
-  "mediacao": {
-    "tempo": "20",
-    "funcaoDidactica": "Mediação e Assimilação",
-    "conteudo": "...",
-    "competencias": "...",
-    "actProfessor": ["...", "...", "..."],
-    "actAluno": ["...", "...", "..."],
-    "metodo": "Exposição",
-    "meios": "Quadro, marcador, caderno, caneta"
-  },
-  "dominio": {
-    "tempo": "15",
-    "funcaoDidactica": "Domínio e Consolidação",
-    "conteudo": "...",
-    "competencias": "...",
-    "actProfessor": ["...", "...", "..."],
-    "actAluno": ["...", "...", "..."],
-    "metodo": "Elaboração conjunta",
-    "meios": "Quadro, marcador, caderno, apagador"
-  },
-  "controle": {
-    "tempo": "5",
-    "funcaoDidactica": "Controle e Avaliação",
-    "conteudo": "Marcação do TPC",
-    "competencias": "...",
-    "actProfessor": ["...", "..."],
-    "actAluno": ["..."],
-    "metodo": "Elaboração conjunta",
-    "meios": "Quadro, marcador, caderno"
-  },
-  "quadroMural": {
-    "definicao": "Texto completo da definição com notação LaTeX",
-    "notacao": "Notação formal em LaTeX, ex: $A - B = \\{x : x \\in A \\text{ e } x \\notin B\\}$",
-    "exemplos": [
-      "Exemplo 1 completo com valores concretos e LaTeX",
-      "Exemplo 2 completo com valores concretos e LaTeX"
-    ],
-    "desenvolvimento": [
-      {
-        "subtitulo": "Conceito adicional relacionado (ex: Complementar de um Conjunto)",
-        "texto": "Explicação do conceito com LaTeX",
-        "notacao": "Notação LaTeX do conceito",
-        "exemplos": ["Exemplo 1", "Exemplo 2"]
+    const gerar = async () => {
+      if (!form.tema || !form.escola || !form.professor) {
+        setErro("Preencha pelo menos: Escola, Professor(a) e Tema."); return;
       }
-    ],
-    "propriedades": [
-      "Propriedade 1 em LaTeX",
-      "Propriedade 2 em LaTeX",
-      "Propriedade 3 em LaTeX"
-    ],
-    "exercicios": [
-      "Enunciado exercício 1 completo com dados concretos",
-      "Enunciado exercício 2 completo com dados concretos",
-      "Enunciado exercício 3 completo com dados concretos"
-    ],
-    "resolucaoExercicios": [
-      "Resolução 1 com LaTeX",
-      "Resolução 2 com LaTeX",
-      "Resolução 3 com LaTeX"
-    ],
-    "tpc": [
-      "Enunciado TPC 1 completo",
-      "Enunciado TPC 2 completo",
-      "Enunciado TPC 3 completo"
-    ],
-    "resolucaoTpc": [
-      "Resolução TPC 1 com LaTeX",
-      "Resolução TPC 2 com LaTeX",
-      "Resolução TPC 3 com LaTeX"
-    ]
+      setErro(""); setLoading(true);
+
+      const disc = ["matemática","matematica","física","fisica","química","quimica"];
+      const usaLatex = disc.some(d => (form.disciplina||"").toLowerCase().includes(d));
+
+      // Detectar se o tema precisa de gráfico
+      const temasGrafico = ["função","funções","funcao","funcoes","gráfico","grafico","estatística","estatistica","trigonometria","geometria","parábola","parabola","hipérbole","hiperbole","linear","quadrática","quadratica","exponencial","logaritmo","seno","coseno","tangente","cinemática","cinematica","movimento","velocidade","aceleração","aceleracao"];
+      const precisaGrafico = temasGrafico.some(t => form.tema.toLowerCase().includes(t));
+
+      const instrGrafico = precisaGrafico ? `
+GRÁFICOS: Este tema requer gráficos. Inclui no quadroMural os campos de gráfico usando esta estrutura:
+
+Para UMA função:
+"grafico": { "tipo": "funcao", "expressao": "2*x + 1", "titulo": "Gráfico de f(x) = 2x + 1", "label": "f(x) = 2x+1", "xmin": -5, "xmax": 5, "eixoX": "x", "eixoY": "f(x)", "descricao": "Recta com declive 2 e ordenada na origem 1" }
+
+Para MÚLTIPLAS funções:
+"grafico": { "tipo": "multiplas_funcoes", "titulo": "Comparação de funções", "funcoes": [{"expressao":"x*x","label":"f(x)=x²"},{"expressao":"2*x","label":"g(x)=2x"}], "xmin":-5, "xmax":5, "eixoX":"x", "eixoY":"y" }
+
+Para BARRAS (estatística):
+"grafico": { "tipo": "barras", "titulo": "...", "labels": ["A","B","C"], "valores": [10,20,30], "label": "Frequência", "eixoX": "Classe", "eixoY": "Frequência" }
+
+Para DISPERSÃO:
+"grafico": { "tipo": "dispersao", "titulo": "...", "pontos": [{"x":1,"y":2},{"x":2,"y":4}], "label": "Dados", "eixoX": "x", "eixoY": "y" }
+
+Usa expressões JavaScript válidas: Math.sin(x), Math.cos(x), Math.sqrt(x), Math.pow(x,2), x*x, etc.
+Podes adicionar "grafico" dentro de blocos de desenvolvimento também.
+Podes adicionar "graficoExemplos" e "graficoExercicios" no quadroMural.
+Se o tema NÃO precisar de gráfico, omite os campos de gráfico.` : `GRÁFICOS: Este tema não requer gráficos. Não incluas campos de gráfico.`;
+
+      const prompt = `Cria um plano de aula completo para "${form.tema}", disciplina ${form.disciplina||"Matemática"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano (currículo INDE/MINED).
+
+Responde SOMENTE com JSON puro sem markdown.
+
+${usaLatex
+  ? "LATEX: Usa obrigatoriamente LaTeX para TODAS as fórmulas, notações e símbolos. Envolve expressões em $...$ (inline) ou $$...$$ (bloco)."
+  : "LATEX: Esta é uma disciplina teórica — NÃO uses LaTeX. Escreve tudo em texto simples."}
+
+${instrGrafico}
+
+Estrutura EXACTA do JSON:
+{
+  "objectivosCognitivos": ["...","...","..."],
+  "objectivosPsicomotores": ["...","..."],
+  "objectivosAfectivos": ["...","..."],
+  "introducao": { "tempo":"5","funcaoDidactica":"Introdução e Motivação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador" },
+  "mediacao":   { "tempo":"20","funcaoDidactica":"Mediação e Assimilação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Exposição","meios":"Quadro, marcador, caderno, caneta" },
+  "dominio":    { "tempo":"15","funcaoDidactica":"Domínio e Consolidação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno, apagador" },
+  "controle":   { "tempo":"5","funcaoDidactica":"Controle e Avaliação","conteudo":"Marcação do TPC","competencias":"...","actProfessor":["...","..."],"actAluno":["..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno" },
+  "quadroMural": {
+    "definicao": "...",
+    "notacao": "...",
+    "grafico": { ... },
+    "exemplos": ["...","..."],
+    "graficoExemplos": { ... },
+    "desenvolvimento": [{ "subtitulo":"...","texto":"...","notacao":"...","grafico":{...},"exemplos":["..."] }],
+    "propriedades": ["...","...","..."],
+    "exercicios": ["...","...","..."],
+    "graficoExercicios": { ... },
+    "resolucaoExercicios": ["...","...","..."],
+    "tpc": ["...","...","..."],
+    "resolucaoTpc": ["...","...","..."]
   }
 }`;
 
-        try {
-          const res = await fetch(WORKER_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "claude-opus-4-8", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
-          const raw = data.content.map(i => i.text||"").join("").trim();
-          const start = raw.indexOf("{"), end = raw.lastIndexOf("}");
-          if (start===-1||end===-1) throw new Error("Resposta inválida da IA.");
-          const parsed = JSON.parse(raw.substring(start, end+1));
-          parsed.disciplina = form.disciplina;
+      try {
+        const res  = await fetch(WORKER_URL, {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({model:"claude-opus-4-8", max_tokens:8000, messages:[{role:"user",content:prompt}]}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+        const raw   = data.content.map(i=>i.text||"").join("").trim();
+        const start = raw.indexOf("{"), end = raw.lastIndexOf("}");
+        if (start===-1||end===-1) throw new Error("Resposta inválida da IA.");
 
-          // Garantir que todos os campos existem com valores por defeito
-          const safe = (v, def) => v !== undefined && v !== null ? v : def;
-          const safeArr = (v) => Array.isArray(v) ? v : [];
-          const safeSection = (s) => s ? {
-            tempo: safe(s.tempo, "5"),
-            funcaoDidactica: safe(s.funcaoDidactica, ""),
-            conteudo: safe(s.conteudo, ""),
-            competencias: safe(s.competencias, ""),
-            actProfessor: safeArr(s.actProfessor),
-            actAluno: safeArr(s.actAluno),
-            metodo: safe(s.metodo, ""),
-            meios: safe(s.meios, ""),
-          } : { tempo:"0", funcaoDidactica:"", conteudo:"", competencias:"", actProfessor:[], actAluno:[], metodo:"", meios:"" };
+        const parsed = JSON.parse(raw.substring(start, end+1));
+        parsed.disciplina = form.disciplina;
 
-          const planoSeguro = {
-            disciplina: parsed.disciplina,
-            objectivosCognitivos: safeArr(parsed.objectivosCognitivos),
-            objectivosPsicomotores: safeArr(parsed.objectivosPsicomotores),
-            objectivosAfectivos: safeArr(parsed.objectivosAfectivos),
-            introducao: safeSection(parsed.introducao),
-            mediacao: safeSection(parsed.mediacao),
-            dominio: safeSection(parsed.dominio),
-            controle: safeSection(parsed.controle),
-            quadroMural: {
-              definicao: safe(parsed.quadroMural?.definicao, ""),
-              notacao: safe(parsed.quadroMural?.notacao, ""),
-              exemplos: safeArr(parsed.quadroMural?.exemplos),
-              desenvolvimento: safeArr(parsed.quadroMural?.desenvolvimento),
-              propriedades: safeArr(parsed.quadroMural?.propriedades),
-              exercicios: safeArr(parsed.quadroMural?.exercicios),
-              resolucaoExercicios: safeArr(parsed.quadroMural?.resolucaoExercicios),
-              tpc: safeArr(parsed.quadroMural?.tpc),
-              resolucaoTpc: safeArr(parsed.quadroMural?.resolucaoTpc),
-            }
-          };
+        const safe    = (v,def) => v!==undefined&&v!==null ? v : def;
+        const safeArr = (v) => Array.isArray(v) ? v : [];
+        const safeSection = (s) => s ? {
+          tempo:safe(s.tempo,"5"), funcaoDidactica:safe(s.funcaoDidactica,""),
+          conteudo:safe(s.conteudo,""), competencias:safe(s.competencias,""),
+          actProfessor:safeArr(s.actProfessor), actAluno:safeArr(s.actAluno),
+          metodo:safe(s.metodo,""), meios:safe(s.meios,""),
+        } : {tempo:"0",funcaoDidactica:"",conteudo:"",competencias:"",actProfessor:[],actAluno:[],metodo:"",meios:""};
 
-          console.log("Plano gerado:", JSON.stringify(planoSeguro, null, 2));
-          setPlano(planoSeguro);
-          setStep("preview");
-        } catch(err) {
-          console.error("Erro completo:", err);
-          console.error("Raw response:", raw);
-          setErro("Erro: " + err.message + " — Abra a consola do browser (F12) para mais detalhes.");
-        }
-        setLoading(false);
-      };
+        const planoSeguro = {
+          disciplina: parsed.disciplina,
+          objectivosCognitivos:  safeArr(parsed.objectivosCognitivos),
+          objectivosPsicomotores:safeArr(parsed.objectivosPsicomotores),
+          objectivosAfectivos:   safeArr(parsed.objectivosAfectivos),
+          introducao: safeSection(parsed.introducao),
+          mediacao:   safeSection(parsed.mediacao),
+          dominio:    safeSection(parsed.dominio),
+          controle:   safeSection(parsed.controle),
+          quadroMural: {
+            definicao:           safe(parsed.quadroMural?.definicao,""),
+            notacao:             safe(parsed.quadroMural?.notacao,""),
+            grafico:             parsed.quadroMural?.grafico || null,
+            exemplos:            safeArr(parsed.quadroMural?.exemplos),
+            graficoExemplos:     parsed.quadroMural?.graficoExemplos || null,
+            desenvolvimento:     safeArr(parsed.quadroMural?.desenvolvimento),
+            propriedades:        safeArr(parsed.quadroMural?.propriedades),
+            exercicios:          safeArr(parsed.quadroMural?.exercicios),
+            graficoExercicios:   parsed.quadroMural?.graficoExercicios || null,
+            resolucaoExercicios: safeArr(parsed.quadroMural?.resolucaoExercicios),
+            tpc:                 safeArr(parsed.quadroMural?.tpc),
+            resolucaoTpc:        safeArr(parsed.quadroMural?.resolucaoTpc),
+          }
+        };
+        setPlano(planoSeguro);
+        setStep("preview");
+      } catch(err) {
+        console.error("Erro:", err);
+        setErro("Erro: " + err.message);
+      }
+      setLoading(false);
+    };
 
-      const d = form;
-      const p = plano;
-      const tc = { border:"1px solid #000", padding:"5px", verticalAlign:"top", fontSize:"9pt" };
-      const th = { ...tc, background:"#ccc", textAlign:"center", fontWeight:"bold" };
+    const d = form, p = plano;
+    const tc = {border:"1px solid #000",padding:"5px",verticalAlign:"top",fontSize:"9pt"};
+    const th = {...tc, background:"#ccc",textAlign:"center",fontWeight:"bold"};
 
-      // ── PLANO COMPLETO ─────────────────────────────────────────────────────
-      const PlanoCompleto = () => {
-        useMathJax(plano, p?.disciplina);
-        if (!p) return <div style={{padding:20, color:"red"}}>Nenhum plano gerado.</div>;
-        if (!p.introducao) return <div style={{padding:20, color:"red"}}>Estrutura do plano inválida. Tente gerar novamente.</div>;
-        return (
-          <div id="plano-imprimivel" style={{ fontFamily:"Arial,sans-serif", color:"#000" }}>
-
-            {/* ── PÁGINA 1 LANDSCAPE: Cabeçalho + Objectivos + Assinaturas ── */}
-            <div className="pg-landscape" style={{ pageBreakAfter:"always" }}>
-              <h2 style={{ textAlign:"center", margin:"0 0 8px", fontSize:"13pt" }}>Plano de Aula</h2>
-              <table style={{ width:"100%", borderCollapse:"collapse", marginBottom:8 }}>
-                <tbody>
-                  <tr>
-                    <td style={tc}><b>Escola:</b> {d.escola}</td>
-                    <td style={tc}><b>Data:</b> {d.data}</td>
-                    <td style={tc}><b>Curso:</b> {d.curso}</td>
-                  </tr>
-                  <tr>
-                    <td style={tc}><b>Duração:</b> {d.duracao}´</td>
-                    <td style={tc}><b>Classe:</b> {d.classe}ª</td>
-                    <td style={tc}><b>Turma:</b> {d.turma}</td>
-                  </tr>
-                  <tr>
-                    <td style={tc} colSpan={2}><b>Nome {d.generoProfessor==="F"?"da Professora":"do Professor"}:</b> {d.professor}</td>
-                    <td style={tc}><b>Disciplina:</b> {d.disciplina}</td>
-                  </tr>
-                  <tr>
-                    <td style={tc} colSpan={3}><b>Unidade Temática:</b> {d.unidadeTematica||d.tema} &nbsp;|&nbsp; <b>Tema:</b> {d.tema}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <b style={{ fontSize:"10pt" }}>Objectivos</b>
-              <table style={{ width:"100%", borderCollapse:"collapse", margin:"4px 0 16px" }}>
-                <thead><tr>
-                  <th style={th}>Objectivos Cognitivos</th>
-                  <th style={th}>Objectivos Psicomotores</th>
-                  <th style={th}>Objectivos Afectivos</th>
-                </tr></thead>
-                <tbody><tr>
-                  <td style={tc}>No fim da aula o aluno deve possuir conhecimentos sobre:<br/><br/>{p.objectivosCognitivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
-                  <td style={tc}>No fim da aula o aluno deve ser capaz de:<br/><br/>{p.objectivosPsicomotores.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
-                  <td style={tc}>No fim da aula o aluno estará convicto de que:<br/><br/>{p.objectivosAfectivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
-                </tr></tbody>
-              </table>
-
-              <table style={{ width:"100%", borderCollapse:"collapse", marginTop:24 }}>
-                <tbody><tr>
-                  <td style={{ border:"none", textAlign:"center", width:"50%", paddingTop:20 }}>
-                    O Director Adjunto Pedagógico<br/><br/><br/>______________________________<br/>({d.directorAdjunto})
-                  </td>
-                  <td style={{ border:"none", textAlign:"center", width:"50%", paddingTop:20 }}>
-                    {artigoDocente}<br/><br/><br/>______________________________<br/>({d.professor})
-                  </td>
-                </tr></tbody>
-              </table>
-            </div>
-
-            {/* ── PÁGINA 2 LANDSCAPE: Desenvolvimento da Aula ── */}
-            <div className="pg-landscape" style={{ pageBreakAfter:"always" }}>
-              <h3 style={{ textAlign:"center", margin:"0 0 8px", fontSize:"12pt" }}>Desenvolvimento da Aula — {d.tema}</h3>
-              <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                <thead><tr>
-                  {["Tempo","Função Didáctica","Conteúdo","Competências","Act. do Professor","Act. do Aluno","Método","Meios de Ensino"].map(x=>(
-                    <th key={x} style={th}>{x}</th>
-                  ))}
-                </tr></thead>
-                <tbody>
-                  {[p.introducao,p.mediacao,p.dominio,p.controle].map((s,i)=>(
-                    <tr key={i} style={{ background:i%2===0?"#f9f9f9":"#fff" }}>
-                      <td style={{ ...tc, textAlign:"center", fontWeight:"bold" }}>{s.tempo}´</td>
-                      <td style={tc}>{s.funcaoDidactica}</td>
-                      <td style={tc}>{s.conteudo}</td>
-                      <td style={tc}>{s.competencias}</td>
-                      <td style={tc}>{s.actProfessor.map((a,j)=><div key={j}>• {a}</div>)}</td>
-                      <td style={tc}>{s.actAluno.map((a,j)=><div key={j}>• {a}</div>)}</td>
-                      <td style={tc}>{s.metodo}</td>
-                      <td style={tc}>{s.meios}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ── PÁGINA 3 PORTRAIT: Quadro Mural ── */}
-            <div className="pg-portrait">
-              <h3 style={{ textAlign:"center", margin:"0 0 6px", fontSize:"13pt" }}>Quadro Mural</h3>
-              <div style={{ textAlign:"center", fontSize:"11pt", fontWeight:"bold", marginBottom:14, color:"#1a56db" }}>
-                Tema: {d.tema}
-              </div>
-              <QuadroMural qm={p.quadroMural} tema={d.tema} disciplina={p.disciplina}/>
-            </div>
-
-          </div>
-        );
-      };
-
-      // ── FORMULÁRIO ─────────────────────────────────────────────────────────
-      if (step === "form") return (
-        <div style={{ maxWidth:840, margin:"0 auto", padding:"20px 14px" }}>
-          <div style={{ background:"linear-gradient(135deg,#1a56db,#0e3a8c)", borderRadius:10, padding:"18px 22px", marginBottom:22, color:"#fff" }}>
-            <div style={{ fontSize:22, fontWeight:700 }}>📋 Gerador de Plano de Aula com IA</div>
-            <div style={{ fontSize:13, opacity:.85, marginTop:4 }}>Preencha os dados e a IA gera o plano completo</div>
-          </div>
-
-          <div style={{ background:"#fff", borderRadius:10, padding:22, boxShadow:"0 2px 8px rgba(0,0,0,.08)" }}>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-              {[
-                ["escola","🏫 Escola","Ex: Escola Básica de Tobuè"],
-                ["data","📅 Data",""],
-                ["curso","📚 Curso","Ex: Diurno"],
-                ["duracao","⏱ Duração (min)","45"],
-                ["classe","🎓 Classe","Ex: 8"],
-                ["turma","🔤 Turma","Ex: A"],
-                ["disciplina","📐 Disciplina","Ex: Matemática"],
-                ["directorAdjunto","🏛 Director Adjunto Pedagógico",""],
-                ["unidadeTematica","📂 Unidade Temática","Ex: Conjuntos"],
-              ].map(([name,label,ph])=>(
-                <div key={name}>
-                  <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>{label}</label>
-                  <input name={name} type={name==="data"?"date":"text"} placeholder={ph} value={form[name]} onChange={handle}
-                    style={{ width:"100%", padding:"7px 9px", border:"1px solid #ccc", borderRadius:6, fontSize:13 }}/>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:14, marginTop:14, alignItems:"end" }}>
-              <div>
-                <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>⚥ Género</label>
-                <div style={{ display:"flex", gap:8 }}>
-                  {[["M","♂ M"],["F","♀ F"]].map(([val,lbl])=>(
-                    <label key={val} style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer",
-                      padding:"7px 16px", borderRadius:6, border:`2px solid ${form.generoProfessor===val?"#1a56db":"#ccc"}`,
-                      background:form.generoProfessor===val?"#eff6ff":"#fff",
-                      fontWeight:form.generoProfessor===val?700:400, fontSize:13 }}>
-                      <input type="radio" name="generoProfessor" value={val} checked={form.generoProfessor===val}
-                        onChange={handle} style={{ display:"none" }}/>
-                      {lbl}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>{labelProfessor}</label>
-                <input name="professor" placeholder={form.generoProfessor==="F"?"Nome completo da professora":"Nome completo do professor"}
-                  value={form.professor} onChange={handle}
-                  style={{ width:"100%", padding:"7px 9px", border:"1px solid #ccc", borderRadius:6, fontSize:13 }}/>
-              </div>
-            </div>
-
-            <div style={{ marginTop:8, padding:"7px 12px", background:"#f0f7ff", borderRadius:6, fontSize:12, color:"#1a56db" }}>
-              ℹ️ A assinatura aparecerá como: <b>"{artigoDocente}"</b>
-            </div>
-
-            <div style={{ marginTop:14 }}>
-              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#444", marginBottom:3 }}>✏️ Tema da Aula *</label>
-              <input name="tema" placeholder="Ex: Diferença de Conjuntos, Funções Lineares, Equações do 2º Grau..."
-                value={form.tema} onChange={handle}
-                style={{ width:"100%", padding:"9px 11px", border:"2px solid #1a56db", borderRadius:6, fontSize:14 }}/>
-            </div>
-
-            {erro && <div style={{ marginTop:10, padding:"10px 14px", background:"#fee2e2", border:"1px solid #fca5a5", borderRadius:6, color:"#b91c1c", fontSize:13 }}>⚠️ {erro}</div>}
-
-            <button onClick={gerar} disabled={loading}
-              style={{ marginTop:18, width:"100%", padding:13, background:loading?"#93c5fd":"#1a56db", color:"#fff", border:"none", borderRadius:8, fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer" }}>
-              {loading ? "⏳ A gerar com IA..." : "🚀 Gerar Plano de Aula"}
-            </button>
-            {loading && <div style={{ marginTop:10, textAlign:"center", fontSize:13, color:"#555" }}>A IA está a criar o plano para <b>"{form.tema}"</b>. Aguarde...</div>}
-          </div>
-        </div>
-      );
-
-      // ── PREVIEW ────────────────────────────────────────────────────────────
+    // ── Plano Completo ──────────────────────────────────────────────────────
+    const PlanoCompleto = () => {
+      useMathJax(plano, p?.disciplina);
+      if (!p) return <div style={{padding:20,color:"red"}}>Nenhum plano gerado.</div>;
+      if (!p.introducao) return <div style={{padding:20,color:"red"}}>Estrutura inválida. Tente novamente.</div>;
       return (
-        <div style={{ maxWidth:960, margin:"0 auto", padding:"16px 14px" }}>
-          <style>{`@media print { .noprint { display:none!important; } body{background:#fff} }`}</style>
+        <div id="plano-imprimivel" style={{fontFamily:"Arial,sans-serif",color:"#000"}}>
 
-          <div className="noprint" style={{ background:"#f0f7ff", border:"1px solid #c3dafe", borderRadius:8, padding:"12px 16px", marginBottom:16, display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
-            <div style={{ fontSize:13 }}><b>{d.tema}</b> — {d.escola} | {d.classe}ª {d.turma} | {d.disciplina}</div>
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              <button onClick={()=>{ setStep("form"); setPlano(null); }}
-                style={{ padding:"7px 14px", background:"#fff", border:"1px solid #ccc", borderRadius:6, cursor:"pointer", fontSize:13 }}>
-                ✏️ Novo Plano
-              </button>
-              <button onClick={descarregarWord}
-                style={{ padding:"7px 14px", background:"#1a56db", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:700 }}>
-                ⬇️ Word
-              </button>
-              <button onClick={copiarHTML}
-                style={{ padding:"7px 14px", background:"#16a34a", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:700 }}>
-                📋 Copiar
-              </button>
-              <button onClick={()=>window.print()}
-                style={{ padding:"7px 14px", background:"#7c3aed", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:700 }}>
-                🖨️ Imprimir/PDF
-              </button>
-            </div>
+          {/* Página 1 — Landscape: Cabeçalho + Objectivos + Assinaturas */}
+          <div className="pagina-landscape" style={{pageBreakAfter:"always"}}>
+            <h2 style={{textAlign:"center",margin:"0 0 8px",fontSize:"13pt"}}>Plano de Aula</h2>
+            <table style={{width:"100%",borderCollapse:"collapse",marginBottom:8}}>
+              <tbody>
+                <tr><td style={tc}><b>Escola:</b> {d.escola}</td><td style={tc}><b>Data:</b> {d.data}</td><td style={tc}><b>Curso:</b> {d.curso}</td></tr>
+                <tr><td style={tc}><b>Duração:</b> {d.duracao}´</td><td style={tc}><b>Classe:</b> {d.classe}ª</td><td style={tc}><b>Turma:</b> {d.turma}</td></tr>
+                <tr><td style={tc} colSpan={2}><b>Nome {d.generoProfessor==="F"?"da Professora":"do Professor"}:</b> {d.professor}</td><td style={tc}><b>Disciplina:</b> {d.disciplina}</td></tr>
+                <tr><td style={tc} colSpan={3}><b>Unidade Temática:</b> {d.unidadeTematica||d.tema} &nbsp;|&nbsp; <b>Tema:</b> {d.tema}</td></tr>
+              </tbody>
+            </table>
+            <b style={{fontSize:"10pt"}}>Objectivos</b>
+            <table style={{width:"100%",borderCollapse:"collapse",margin:"4px 0 16px"}}>
+              <thead><tr>
+                <th style={th}>Objectivos Cognitivos</th>
+                <th style={th}>Objectivos Psicomotores</th>
+                <th style={th}>Objectivos Afectivos</th>
+              </tr></thead>
+              <tbody><tr>
+                <td style={tc}>No fim da aula o aluno deve possuir conhecimentos sobre:<br/><br/>{p.objectivosCognitivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
+                <td style={tc}>No fim da aula o aluno deve ser capaz de:<br/><br/>{p.objectivosPsicomotores.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
+                <td style={tc}>No fim da aula o aluno estará convicto de que:<br/><br/>{p.objectivosAfectivos.map((o,i)=><div key={i}>✔ {o}<br/><br/></div>)}</td>
+              </tr></tbody>
+            </table>
+            <table style={{width:"100%",borderCollapse:"collapse",marginTop:24}}>
+              <tbody><tr>
+                <td style={{border:"none",textAlign:"center",width:"50%",paddingTop:20}}>O Director Adjunto Pedagógico<br/><br/><br/>______________________________<br/>({d.directorAdjunto})</td>
+                <td style={{border:"none",textAlign:"center",width:"50%",paddingTop:20}}>{artigoDocente}<br/><br/><br/>______________________________<br/>({d.professor})</td>
+              </tr></tbody>
+            </table>
           </div>
 
-          {copiado && (
-            <div style={{ background:"#dcfce7", border:"1px solid #86efac", borderRadius:8, padding:"10px 14px", marginBottom:12, fontSize:13, color:"#166534", fontWeight:600 }}>
-              ✅ Copiado! Abra o Word → Ctrl+V
-            </div>
-          )}
+          {/* Página 2 — Landscape: Desenvolvimento */}
+          <div className="pagina-landscape" style={{pageBreakAfter:"always"}}>
+            <h3 style={{textAlign:"center",margin:"0 0 8px",fontSize:"12pt"}}>Desenvolvimento da Aula — {d.tema}</h3>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr>
+                {["Tempo","Função Didáctica","Conteúdo","Competências","Act. do Professor","Act. do Aluno","Método","Meios de Ensino"].map(x=><th key={x} style={th}>{x}</th>)}
+              </tr></thead>
+              <tbody>
+                {[p.introducao,p.mediacao,p.dominio,p.controle].map((s,i)=>(
+                  <tr key={i} style={{background:i%2===0?"#f9f9f9":"#fff"}}>
+                    <td style={{...tc,textAlign:"center",fontWeight:"bold"}}>{s.tempo}´</td>
+                    <td style={tc}>{s.funcaoDidactica}</td>
+                    <td style={tc}>{s.conteudo}</td>
+                    <td style={tc}>{s.competencias}</td>
+                    <td style={tc}>{s.actProfessor.map((a,j)=><div key={j}>• {a}</div>)}</td>
+                    <td style={tc}>{s.actAluno.map((a,j)=><div key={j}>• {a}</div>)}</td>
+                    <td style={tc}>{s.metodo}</td>
+                    <td style={tc}>{s.meios}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          <div style={{ background:"#fff", padding:"24px", borderRadius:10, boxShadow:"0 2px 8px rgba(0,0,0,.07)" }}>
-            <PlanoCompleto />
+          {/* Página 3 — Portrait: Quadro Mural */}
+          <div className="pagina-portrait">
+            <h3 style={{textAlign:"center",margin:"0 0 6px",fontSize:"13pt"}}>Quadro Mural</h3>
+            <div style={{textAlign:"center",fontSize:"11pt",fontWeight:"bold",marginBottom:14,color:"#1a56db"}}>Tema: {d.tema}</div>
+            <QuadroMural qm={p.quadroMural} tema={d.tema} disciplina={p.disciplina}/>
           </div>
         </div>
       );
-    }
+    };
 
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
-  </script>
+    // ── Formulário ──────────────────────────────────────────────────────────
+    if (step === "form") return (
+      <div style={{maxWidth:840,margin:"0 auto",padding:"20px 14px"}}>
+        <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",borderRadius:10,padding:"18px 22px",marginBottom:22,color:"#fff"}}>
+          <div style={{fontSize:22,fontWeight:700}}>📋 Gerador de Plano de Aula com IA</div>
+          <div style={{fontSize:13,opacity:.85,marginTop:4}}>Preencha os dados e a IA gera o plano completo com gráficos</div>
+        </div>
+        <div style={{background:"#fff",borderRadius:10,padding:22,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            {[
+              ["escola","🏫 Escola","Ex: Escola Básica de Tobuè"],
+              ["data","📅 Data",""],
+              ["curso","📚 Curso","Ex: Diurno"],
+              ["duracao","⏱ Duração (min)","45"],
+              ["classe","🎓 Classe","Ex: 8"],
+              ["turma","🔤 Turma","Ex: A"],
+              ["disciplina","📐 Disciplina","Ex: Matemática"],
+              ["directorAdjunto","🏛 Director Adjunto Pedagógico",""],
+              ["unidadeTematica","📂 Unidade Temática","Ex: Funções"],
+            ].map(([name,label,ph])=>(
+              <div key={name}>
+                <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>{label}</label>
+                <input name={name} type={name==="data"?"date":"text"} placeholder={ph} value={form[name]} onChange={handle}
+                  style={{width:"100%",padding:"7px 9px",border:"1px solid #ccc",borderRadius:6,fontSize:13}}/>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:14,marginTop:14,alignItems:"end"}}>
+            <div>
+              <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>⚥ Género</label>
+              <div style={{display:"flex",gap:8}}>
+                {[["M","♂ M"],["F","♀ F"]].map(([val,lbl])=>(
+                  <label key={val} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",
+                    padding:"7px 16px",borderRadius:6,border:`2px solid ${form.generoProfessor===val?"#1a56db":"#ccc"}`,
+                    background:form.generoProfessor===val?"#eff6ff":"#fff",
+                    fontWeight:form.generoProfessor===val?700:400,fontSize:13}}>
+                    <input type="radio" name="generoProfessor" value={val} checked={form.generoProfessor===val} onChange={handle} style={{display:"none"}}/>
+                    {lbl}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>{labelProfessor}</label>
+              <input name="professor" placeholder={form.generoProfessor==="F"?"Nome completo da professora":"Nome completo do professor"}
+                value={form.professor} onChange={handle}
+                style={{width:"100%",padding:"7px 9px",border:"1px solid #ccc",borderRadius:6,fontSize:13}}/>
+            </div>
+          </div>
+          <div style={{marginTop:8,padding:"7px 12px",background:"#f0f7ff",borderRadius:6,fontSize:12,color:"#1a56db"}}>
+            ℹ️ A assinatura aparecerá como: <b>"{artigoDocente}"</b>
+          </div>
+          <div style={{marginTop:14}}>
+            <label style={{display:"block",fontSize:12,fontWeight:600,color:"#444",marginBottom:3}}>✏️ Tema da Aula *</label>
+            <input name="tema" placeholder="Ex: Funções Lineares, Diferença de Conjuntos, Segunda Guerra Mundial..."
+              value={form.tema} onChange={handle}
+              style={{width:"100%",padding:"9px 11px",border:"2px solid #1a56db",borderRadius:6,fontSize:14}}/>
+          </div>
+          {erro && <div style={{marginTop:10,padding:"10px 14px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,color:"#b91c1c",fontSize:13}}>⚠️ {erro}</div>}
+          <button onClick={gerar} disabled={loading}
+            style={{marginTop:18,width:"100%",padding:13,background:loading?"#93c5fd":"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
+            {loading ? "⏳ A gerar com IA..." : "🚀 Gerar Plano de Aula"}
+          </button>
+          {loading && <div style={{marginTop:10,textAlign:"center",fontSize:13,color:"#555"}}>A IA está a criar o plano para <b>"{form.tema}"</b>. Aguarde...</div>}
+        </div>
+      </div>
+    );
+
+    // ── Preview ─────────────────────────────────────────────────────────────
+    return (
+      <div style={{maxWidth:960,margin:"0 auto",padding:"16px 14px"}}>
+        <style>{`@media print{.noprint{display:none!important}body{background:#fff}}`}</style>
+        <div className="noprint" style={{background:"#f0f7ff",border:"1px solid #c3dafe",borderRadius:8,padding:"12px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+          <div style={{fontSize:13}}><b>{d.tema}</b> — {d.escola} | {d.classe}ª {d.turma} | {d.disciplina}</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <button onClick={()=>{setStep("form");setPlano(null);}}
+              style={{padding:"7px 14px",background:"#fff",border:"1px solid #ccc",borderRadius:6,cursor:"pointer",fontSize:13}}>✏️ Novo Plano</button>
+            <button onClick={descarregarWord}
+              style={{padding:"7px 14px",background:"#1a56db",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>⬇️ Word</button>
+            <button onClick={copiarHTML}
+              style={{padding:"7px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>📋 Copiar</button>
+            <button onClick={()=>window.print()}
+              style={{padding:"7px 14px",background:"#7c3aed",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>🖨️ Imprimir/PDF</button>
+          </div>
+        </div>
+        {copiado && <div style={{background:"#dcfce7",border:"1px solid #86efac",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#166534",fontWeight:600}}>✅ Copiado! Abra o Word → Ctrl+V</div>}
+        <div style={{background:"#fff",padding:"24px",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.07)"}}>
+          <PlanoCompleto/>
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
 </body>
 </html>
