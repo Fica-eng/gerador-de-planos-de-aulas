@@ -422,8 +422,7 @@ JSON com esta estrutura EXACTA:
 
   const temTokenURL = new URLSearchParams(window.location.search).get("verificar");
 
-  // Ecrã de verificação em curso — só mostra se há token no URL
-  if(!utilizador && authLoad && temTokenURL) return(
+  if(!utilizador && authLoad && temTokenURL) return (
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:"#fff",borderRadius:14,padding:"40px 32px",textAlign:"center",maxWidth:400,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
         <div style={{fontSize:48}}>📧</div>
@@ -434,8 +433,6 @@ JSON com esta estrutura EXACTA:
       </div>
     </div>
   );
-
-  // Ecrã Auth
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
         <div style={{textAlign:"center",marginBottom:24}}>
