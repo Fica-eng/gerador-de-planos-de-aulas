@@ -205,27 +205,51 @@ function App(){
   useEffect(()=>{
     try {
       const params = new URLSearchParams(window.location.search);
-      const loginToken = params.get("login_token");
-      const nome       = params.get("nome");
-      const email      = params.get("email");
-      const escola     = params.get("escola");
-      const disciplina = params.get("disciplina");
+      const verificarToken = params.get("verificar");
+      const loginToken     = params.get("login_token");
 
-      if(loginToken && nome && email){
-        const u = {
-          nome:       decodeURIComponent(nome),
-          email:      decodeURIComponent(email),
-          escola:     decodeURIComponent(escola||""),
-          disciplina: decodeURIComponent(disciplina||"")
-        };
-        try { localStorage.setItem("token", loginToken); } catch(e){}
-        try { localStorage.setItem("utilizador", JSON.stringify(u)); } catch(e){}
-        setToken(loginToken);
-        setUtilizador(u);
-        // Limpar URL sem recarregar a página
+      if(verificarToken) {
+        // Chamar Railway para verificar o token
+        setAuthLoad(true);
+        fetch(`${API}/verificar/${verificarToken}`)
+          .then(r => r.json())
+          .then(data => {
+            if(data.sucesso && data.token) {
+              try { localStorage.setItem("token", data.token); } catch(e){}
+              try { localStorage.setItem("utilizador", JSON.stringify(data.professor)); } catch(e){}
+              setToken(data.token);
+              setUtilizador(data.professor);
+            } else {
+              setAuthErro(data.erro || "Link inválido ou já utilizado.");
+            }
+            setAuthLoad(false);
+          })
+          .catch(err => {
+            setAuthErro("Erro ao verificar email: " + err.message);
+            setAuthLoad(false);
+          });
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+      } else if(loginToken) {
+        const nome       = params.get("nome");
+        const email      = params.get("email");
+        const escola     = params.get("escola");
+        const disciplina = params.get("disciplina");
+        if(nome && email) {
+          const u = {
+            nome:       decodeURIComponent(nome),
+            email:      decodeURIComponent(email),
+            escola:     decodeURIComponent(escola||""),
+            disciplina: decodeURIComponent(disciplina||"")
+          };
+          try { localStorage.setItem("token", loginToken); } catch(e){}
+          try { localStorage.setItem("utilizador", JSON.stringify(u)); } catch(e){}
+          setToken(loginToken);
+          setUtilizador(u);
+        }
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-    } catch(e) { console.error("Erro ao processar URL:", e); }
+    } catch(e) { console.error("Erro URL:", e); }
   },[]);
 
   // Plano
@@ -396,8 +420,20 @@ JSON com esta estrutura EXACTA:
   const th = {...tc,background:"#ccc",textAlign:"center",fontWeight:"bold"};
   const artigoDir = "O Director Adjunto Pedagógico";
 
-  // ── Ecrã Auth ───────────────────────────────────────────────────────────────
-  if(!utilizador) return(
+  // Ecrã de verificação em curso
+  if(!utilizador && authLoad) return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"40px 32px",textAlign:"center",maxWidth:400,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
+        <div style={{fontSize:48}}>📧</div>
+        <h2 style={{color:"#1a56db",margin:"12px 0 8px"}}>A verificar email...</h2>
+        <p style={{color:"#555",fontSize:14}}>Aguarde um momento.</p>
+        <div style={{border:"4px solid #e5e7eb",borderTop:"4px solid #1a56db",borderRadius:"50%",width:36,height:36,margin:"20px auto",animation:"spin 1s linear infinite"}}/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    </div>
+  );
+
+  // Ecrã Auth
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
         <div style={{textAlign:"center",marginBottom:24}}>
