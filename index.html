@@ -203,24 +203,29 @@ function App(){
 
   // Verificar token de email no URL ao carregar
   useEffect(()=>{
-    const params = new URLSearchParams(window.location.search);
-    const loginToken = params.get("login_token");
-    const nome       = params.get("nome");
-    const email      = params.get("email");
-    const escola     = params.get("escola");
-    const disciplina = params.get("disciplina");
-    const verificar  = params.get("verificar");
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const loginToken = params.get("login_token");
+      const nome       = params.get("nome");
+      const email      = params.get("email");
+      const escola     = params.get("escola");
+      const disciplina = params.get("disciplina");
 
-    if(loginToken && nome && email){
-      // Conta verificada — fazer login automático
-      const u = { nome: decodeURIComponent(nome), email: decodeURIComponent(email), escola: decodeURIComponent(escola||""), disciplina: decodeURIComponent(disciplina||"") };
-      guardarSessao(loginToken, u);
-      // Limpar URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if(verificar) {
-      // Link antigo de verificação sem redirect — apenas limpa URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+      if(loginToken && nome && email){
+        const u = {
+          nome:       decodeURIComponent(nome),
+          email:      decodeURIComponent(email),
+          escola:     decodeURIComponent(escola||""),
+          disciplina: decodeURIComponent(disciplina||"")
+        };
+        try { localStorage.setItem("token", loginToken); } catch(e){}
+        try { localStorage.setItem("utilizador", JSON.stringify(u)); } catch(e){}
+        setToken(loginToken);
+        setUtilizador(u);
+        // Limpar URL sem recarregar a página
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch(e) { console.error("Erro ao processar URL:", e); }
   },[]);
 
   // Plano
