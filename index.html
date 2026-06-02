@@ -429,6 +429,14 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
       const safeArr=(v)=>Array.isArray(v)?v:[];
       const safeSection=(s)=>s?{tempo:s.tempo||"5",funcaoDidactica:s.funcaoDidactica||"",conteudo:s.conteudo||"",competencias:s.competencias||"",actProfessor:safeArr(s.actProfessor),actAluno:safeArr(s.actAluno),metodo:s.metodo||"",meios:s.meios||""}:{tempo:"0",funcaoDidactica:"",conteudo:"",competencias:"",actProfessor:[],actAluno:[],metodo:"",meios:""};
       setPlano({disciplina:parsed.disciplina,objectivosCognitivos:safeArr(parsed.objectivosCognitivos),objectivosPsicomotores:safeArr(parsed.objectivosPsicomotores),objectivosAfectivos:safeArr(parsed.objectivosAfectivos),introducao:safeSection(parsed.introducao),mediacao:safeSection(parsed.mediacao),dominio:safeSection(parsed.dominio),controle:safeSection(parsed.controle),quadroMural:{definicao:parsed.quadroMural?.definicao||"",notacao:parsed.quadroMural?.notacao||"",grafico:parsed.quadroMural?.grafico||null,exemplos:safeArr(parsed.quadroMural?.exemplos),graficoExemplos:parsed.quadroMural?.graficoExemplos||null,desenvolvimento:safeArr(parsed.quadroMural?.desenvolvimento),propriedades:safeArr(parsed.quadroMural?.propriedades),exercicios:safeArr(parsed.quadroMural?.exercicios),graficoExercicios:parsed.quadroMural?.graficoExercicios||null,resolucaoExercicios:safeArr(parsed.quadroMural?.resolucaoExercicios),tpc:safeArr(parsed.quadroMural?.tpc),resolucaoTpc:safeArr(parsed.quadroMural?.resolucaoTpc)}});
+
+      // Guardar plano na base de dados
+      fetch(`${API}/guardar-plano`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ tema: form.tema, disciplina: form.disciplina, classe: form.classe, dados: parsed })
+      }).catch(err => console.error("Erro ao guardar plano:", err));
+
       setStep("preview");
     }catch(err){setErro("Erro: "+err.message);}
     setLoading(false);
