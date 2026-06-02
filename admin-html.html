@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — Gerador de Plano de Aula</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;background:#f3f4f6;min-height:100vh}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{border:3px solid #e5e7eb;border-top:3px solid #1a56db;border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite;display:inline-block}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+const API = "https://plano-aula-backend-production.up.railway.app";
+
+function App() {
+  const [secret, setSecret]     = useState(() => { try { return localStorage.getItem("admin_secret")||""; } catch { return ""; } });
+  const [input,  setInput]      = useState("");
+  const [erro,   setErro]       = useState("");
+  const [aba,    setAba]        = useState("stats");
+  const [stats,  setStats]      = useState(null);
+  const [profs,  setProfs]      = useState([]);
+  const [planos, setPlanos]     = useState([]);
+  const [search, setSearch]     = useState("");
+  const [page,   setPage]       = useState(1);
+  const [total,  setTotal]      = useState(0);
+  const [load,   setLoad]       = useState(false);
+
+  const headers = { "Content-Type": "application/json", "x-admin-secret": secret };
+
+  const entrar = async () => {
+    setErro("");
+    try {
+      const res  = await fetch(`${API}/admin/stats`, { headers: { "x-admin-secret": input } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.erro || "Senha incorrecta");
+      try { localStorage.setItem("admin_secret", input); } catch(e) {}
+      setSecret(input);
+      setStats(data);
+    } catch (err) { setErro(err.message); }
+  };
+
+  const sair = () => {
+    try { localStorage.removeItem("admin_secret"); } catch(e) {}
+    setSecret(""); setStats(null);
+  };
+
+  const carregarStats = async () => {
+    try {
+      const res  = await fetch(`${API}/admin/stats`, { headers });
+      const data = await res.json();
+      if (res.ok) setStats(data);
+    } catch(e) {}
+  };
+
+  const carregarProfs = async (pg = 1, s = search) => {
+    setLoad(true);
+    try {
+      const res  = await fetch(`${API}/admin/professores?page=${pg}&limit=15${s?`&search=${encodeURIComponent(s)}`:""}`, { headers });
+      const data = await res.json();
+      if (res.ok) { setProfs(data.professores); setTotal(data.total); setPage(pg); }
+    } catch(e) {}
+    setLoad(false);
+  };
+
+  const carregarPlanos = async () => {
+    setLoad(true);
+    try {
+      const res  = await fetch(`${API}/admin/planos`, { headers });
+      const data = await res.json();
+      if (res.ok) setPlanos(data);
+    } catch(e) {}
+    setLoad(false);
+  };
+
+  const verificarProf = async (id) => {
+    await fetch(`${API}/admin/professores/${id}/verificar`, { method: "PATCH", headers });
+    carregarProfs(page);
+  };
+
+  const apagarProf = async (id, nome) => {
+    if (!confirm(`Apagar o professor "${nome}"? Esta acção é irreversível.`)) return;
+    await fetch(`${API}/admin/professores/${id}`, { method: "DELETE", headers });
+    carregarProfs(page);
+    carregarStats();
+  };
+
+  useEffect(() => {
+    if (!secret) return;
+    carregarStats();
+  }, [secret]);
+
+  useEffect(() => {
+    if (!secret) return;
+    if (aba === "professores") carregarProfs(1, "");
+    if (aba === "planos") carregarPlanos();
+  }, [aba]);
+
+  const fmt = (d) => new Date(d).toLocaleDateString("pt-MZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+
+  // ── Login ────────────────────────────────────────────────────────────────
+  if (!secret) return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"40px 32px",width:"100%",maxWidth:400,boxShadow:"0 8px 32px rgba(0,0,0,.18)",textAlign:"center"}}>
+        <div style={{fontSize:40,marginBottom:12}}>🔐</div>
+        <h2 style={{color:"#0e3a8c",marginBottom:8}}>Painel de Administração</h2>
+        <p style={{fontSize:13,color:"#666",marginBottom:24}}>Gerador de Plano de Aula — Moçambique</p>
+        <input type="password" placeholder="Senha de administrador" value={input} onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&entrar()}
+          style={{width:"100%",padding:"10px 12px",border:"1px solid #ccc",borderRadius:7,fontSize:14,marginBottom:12}}/>
+        {erro && <div style={{padding:"8px 12px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {erro}</div>}
+        <button onClick={entrar}
+          style={{width:"100%",padding:12,background:"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:"pointer"}}>
+          Entrar
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Dashboard ────────────────────────────────────────────────────────────
+  return (
+    <div style={{minHeight:"100vh",background:"#f3f4f6"}}>
+
+      {/* Cabeçalho */}
+      <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",color:"#fff"}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:700}}>📊 Painel de Administração</div>
+          <div style={{fontSize:12,opacity:.8}}>Gerador de Plano de Aula — Moçambique</div>
+        </div>
+        <button onClick={sair} style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13}}>
+          🚪 Sair
+        </button>
+      </div>
+
+      {/* Abas */}
+      <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",display:"flex",gap:0}}>
+        {[["stats","📈 Estatísticas"],["professores","👥 Professores"],["planos","📋 Planos Gerados"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setAba(k)}
+            style={{padding:"12px 20px",border:"none",borderBottom:`3px solid ${aba===k?"#1a56db":"transparent"}`,background:"transparent",cursor:"pointer",fontSize:14,fontWeight:aba===k?700:400,color:aba===k?"#1a56db":"#555"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 16px"}}>
+
+        {/* Estatísticas */}
+        {aba === "stats" && stats && (
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:16,marginBottom:24}}>
+              {[
+                ["👥","Total de Professores", stats.totalProfessores, "#1a56db"],
+                ["✅","Contas Verificadas",   stats.verificados,       "#16a34a"],
+                ["⏳","Não Verificados",      stats.naoVerificados,    "#d97706"],
+                ["📋","Planos Gerados",       stats.totalPlanos,       "#7c3aed"],
+                ["🆕","Novos (7 dias)",       stats.novosUltimos7dias, "#0891b2"],
+              ].map(([icon,label,val,cor])=>(
+                <div key={label} style={{background:"#fff",borderRadius:10,padding:"20px 16px",boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:`4px solid ${cor}`}}>
+                  <div style={{fontSize:28,marginBottom:6}}>{icon}</div>
+                  <div style={{fontSize:28,fontWeight:700,color:cor}}>{val}</div>
+                  <div style={{fontSize:13,color:"#666",marginTop:4}}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={carregarStats}
+              style={{padding:"9px 20px",background:"#1a56db",color:"#fff",border:"none",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>
+              🔄 Actualizar
+            </button>
+          </div>
+        )}
+
+        {/* Professores */}
+        {aba === "professores" && (
+          <div>
+            <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+              <input placeholder="Pesquisar por nome, email ou escola..." value={search} onChange={e=>setSearch(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&carregarProfs(1,search)}
+                style={{flex:1,minWidth:200,padding:"9px 12px",border:"1px solid #ccc",borderRadius:7,fontSize:13}}/>
+              <button onClick={()=>carregarProfs(1,search)}
+                style={{padding:"9px 16px",background:"#1a56db",color:"#fff",border:"none",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>
+                🔍 Pesquisar
+              </button>
+              <button onClick={()=>{setSearch("");carregarProfs(1,"");}}
+                style={{padding:"9px 16px",background:"#f3f4f6",border:"1px solid #ccc",borderRadius:7,cursor:"pointer",fontSize:13}}>
+                ✖ Limpar
+              </button>
+            </div>
+
+            {load ? <div style={{textAlign:"center",padding:40}}><div className="spinner"/></div> : (
+              <div>
+                <div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.06)",overflow:"hidden"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse"}}>
+                    <thead>
+                      <tr style={{background:"#f8fafc"}}>
+                        {["#","Nome","Email","Escola","Disciplina","Planos","Estado","Registado","Acções"].map(h=>(
+                          <th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:12,fontWeight:700,color:"#555",borderBottom:"1px solid #e5e7eb"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profs.map((p,i)=>(
+                        <tr key={p.id} style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa"}}>
+                          <td style={{padding:"10px 12px",fontSize:12,color:"#888"}}>{p.id}</td>
+                          <td style={{padding:"10px 12px",fontSize:13,fontWeight:600}}>{p.nome}</td>
+                          <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.email}</td>
+                          <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.escola||"—"}</td>
+                          <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.disciplina||"—"}</td>
+                          <td style={{padding:"10px 12px",fontSize:13,textAlign:"center",fontWeight:700,color:"#7c3aed"}}>{p.total_planos}</td>
+                          <td style={{padding:"10px 12px"}}>
+                            <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:p.verificado?"#dcfce7":"#fef9c3",color:p.verificado?"#166534":"#854d0e"}}>
+                              {p.verificado?"✅ Verificado":"⏳ Pendente"}
+                            </span>
+                          </td>
+                          <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{fmt(p.criado_em)}</td>
+                          <td style={{padding:"10px 12px"}}>
+                            <div style={{display:"flex",gap:6}}>
+                              {!p.verificado && (
+                                <button onClick={()=>verificarProf(p.id)}
+                                  style={{padding:"4px 10px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,color:"#166534"}}>
+                                  ✅ Verificar
+                                </button>
+                              )}
+                              <button onClick={()=>apagarProf(p.id,p.nome)}
+                                style={{padding:"4px 10px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,color:"#b91c1c"}}>
+                                🗑 Apagar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {profs.length === 0 && (
+                        <tr><td colSpan={9} style={{padding:30,textAlign:"center",color:"#888",fontSize:13}}>Nenhum professor encontrado.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Paginação */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:12,flexWrap:"wrap",gap:8}}>
+                  <span style={{fontSize:13,color:"#666"}}>{total} professor{total!==1?"es":""} no total</span>
+                  <div style={{display:"flex",gap:6}}>
+                    <button onClick={()=>carregarProfs(page-1)} disabled={page<=1}
+                      style={{padding:"6px 14px",border:"1px solid #ccc",borderRadius:6,cursor:page<=1?"not-allowed":"pointer",background:page<=1?"#f3f4f6":"#fff",fontSize:13}}>
+                      ← Anterior
+                    </button>
+                    <span style={{padding:"6px 14px",background:"#1a56db",color:"#fff",borderRadius:6,fontSize:13,fontWeight:700}}>
+                      {page}
+                    </span>
+                    <button onClick={()=>carregarProfs(page+1)} disabled={page*15>=total}
+                      style={{padding:"6px 14px",border:"1px solid #ccc",borderRadius:6,cursor:page*15>=total?"not-allowed":"pointer",background:page*15>=total?"#f3f4f6":"#fff",fontSize:13}}>
+                      Próxima →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Planos */}
+        {aba === "planos" && (
+          <div>
+            {load ? <div style={{textAlign:"center",padding:40}}><div className="spinner"/></div> : (
+              <div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.06)",overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead>
+                    <tr style={{background:"#f8fafc"}}>
+                      {["Tema","Disciplina","Classe","Professor","Escola","Data"].map(h=>(
+                        <th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:12,fontWeight:700,color:"#555",borderBottom:"1px solid #e5e7eb"}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {planos.map((pl,i)=>(
+                      <tr key={pl.id} style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa"}}>
+                        <td style={{padding:"10px 12px",fontSize:13,fontWeight:600,maxWidth:200}}>{pl.tema}</td>
+                        <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{pl.disciplina||"—"}</td>
+                        <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{pl.classe?`${pl.classe}ª`:"—"}</td>
+                        <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{pl.professor}</td>
+                        <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{pl.escola||"—"}</td>
+                        <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{fmt(pl.criado_em)}</td>
+                      </tr>
+                    ))}
+                    {planos.length===0&&(
+                      <tr><td colSpan={6} style={{padding:30,textAlign:"center",color:"#888",fontSize:13}}>Nenhum plano gerado ainda.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
