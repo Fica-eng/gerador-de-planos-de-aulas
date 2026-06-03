@@ -231,6 +231,21 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
                 <input name="disciplina" placeholder="Ex: Matemática" value={authForm.disciplina} onChange={handleAuth}
                   style={{width:"100%",padding:"9px 11px",border:"1px solid #ccc",borderRadius:7,fontSize:14,boxSizing:"border-box"}}/>
               </div>
+              <div>
+                <label style={{fontSize:12,fontWeight:600,color:"#444",display:"block",marginBottom:6}}>⚥ Género *</label>
+                <div style={{display:"flex",gap:10}}>
+                  {[["M","♂ Masculino"],["F","♀ Feminino"]].map(([val,lbl])=>(
+                    <label key={val} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",
+                      padding:"8px 18px",borderRadius:7,border:`2px solid ${authForm.genero===val?"#1a56db":"#ccc"}`,
+                      background:authForm.genero===val?"#eff6ff":"#fff",
+                      fontWeight:authForm.genero===val?700:400,fontSize:13,flex:1,justifyContent:"center"}}>
+                      <input type="radio" name="genero" value={val} checked={authForm.genero===val}
+                        onChange={handleAuth} style={{display:"none"}}/>
+                      {lbl}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </React.Fragment>
           )}
           <div>
@@ -285,7 +300,7 @@ function App(){
   const [utilizador,setUtilizador]=useState(()=>{try{const u=localStorage.getItem("utilizador");return u?JSON.parse(u):null;}catch{return null;}});
   const [token,setToken]=useState(()=>{try{return localStorage.getItem("token")||"";}catch{return "";}});
   const [authStep,setAuthStep]=useState("login");
-  const [authForm,setAuthForm]=useState({nome:"",email:"",senha:"",escola:"",disciplina:""});
+  const [authForm,setAuthForm]=useState({nome:"",email:"",senha:"",escola:"",disciplina:"",genero:""});
   const [authErro,setAuthErro]=useState("");
   const [authMsg,setAuthMsg]=useState("");
   const [authLoad,setAuthLoad]=useState(false);
@@ -354,7 +369,7 @@ function App(){
     const url=authStep==="login"?`${API}/login`:`${API}/registar`;
     const body=authStep==="login"
       ?{email:authForm.email,senha:authForm.senha}
-      :{nome:authForm.nome,email:authForm.email,senha:authForm.senha,escola:authForm.escola,disciplina:authForm.disciplina};
+      :{nome:authForm.nome,email:authForm.email,senha:authForm.senha,escola:authForm.escola,disciplina:authForm.disciplina,genero:authForm.genero};
     try{
       const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
