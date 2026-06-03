@@ -157,6 +157,8 @@ function App() {
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:16,marginBottom:24}}>
               {[
                 ["👥","Total de Professores", stats.totalProfessores, "#1a56db"],
+                ["♂","Masculino",             stats.masculinos,       "#0891b2"],
+                ["♀","Feminino",              stats.femininos,        "#db2777"],
                 ["✅","Contas Verificadas",   stats.verificados,       "#16a34a"],
                 ["⏳","Não Verificados",      stats.naoVerificados,    "#d97706"],
                 ["📋","Planos Gerados",       stats.totalPlanos,       "#7c3aed"],
@@ -199,7 +201,7 @@ function App() {
                   <table style={{width:"100%",borderCollapse:"collapse"}}>
                     <thead>
                       <tr style={{background:"#f8fafc"}}>
-                        {["#","Nome","Email","Escola","Disciplina","Planos","Estado","Registado","Acções"].map(h=>(
+                        {["#","Nome","Email","Escola","Disciplina","Género","Planos","Estado","Registado","Acções"].map(h=>(
                           <th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:12,fontWeight:700,color:"#555",borderBottom:"1px solid #e5e7eb"}}>{h}</th>
                         ))}
                       </tr>
@@ -212,6 +214,9 @@ function App() {
                           <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.email}</td>
                           <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.escola||"—"}</td>
                           <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.disciplina||"—"}</td>
+                          <td style={{padding:"10px 12px",fontSize:13,textAlign:"center"}}>
+                            {p.genero==="M" ? <span style={{color:"#0891b2",fontWeight:700}}>♂ M</span> : p.genero==="F" ? <span style={{color:"#db2777",fontWeight:700}}>♀ F</span> : <span style={{color:"#888"}}>—</span>}
+                          </td>
                           <td style={{padding:"10px 12px",fontSize:13,textAlign:"center",fontWeight:700,color:"#7c3aed"}}>{p.total_planos}</td>
                           <td style={{padding:"10px 12px"}}>
                             <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:p.verificado?"#dcfce7":"#fef9c3",color:p.verificado?"#166534":"#854d0e"}}>
