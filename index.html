@@ -42,7 +42,7 @@
 const { useState, useEffect, useRef } = React;
 const API = "https://plano-aula-backend-production.up.railway.app";
 
-// ── Error Boundary ────────────────────────────────────────────────────────
+// ── Error Boundary ─────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
   constructor(p){super(p);this.state={erro:null}}
   static getDerivedStateFromError(e){return{erro:e.message}}
@@ -61,7 +61,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ── MathJax ───────────────────────────────────────────────────────────────
+// ── MathJax ────────────────────────────────────────────────────────────────
 function useMathJax(dep, disciplina) {
   useEffect(()=>{
     const disc=["matemática","matematica","física","fisica","química","quimica"];
@@ -70,7 +70,7 @@ function useMathJax(dep, disciplina) {
   },[dep]);
 }
 
-// ── Gráfico ───────────────────────────────────────────────────────────────
+// ── Gráfico ────────────────────────────────────────────────────────────────
 function Grafico({dados}){
   const canvasRef=useRef(null);
   const chartRef=useRef(null);
@@ -118,7 +118,7 @@ function Grafico({dados}){
   );
 }
 
-// ── Quadro Mural ──────────────────────────────────────────────────────────
+// ── Quadro Mural ───────────────────────────────────────────────────────────
 function QuadroMural({qm,disciplina}){
   useMathJax(qm,disciplina);
   if(!qm) return null;
@@ -182,7 +182,7 @@ function QuadroMural({qm,disciplina}){
   );
 }
 
-// ── Ecrã de Loading ───────────────────────────────────────────────────────
+// ── Ecrã Loading ───────────────────────────────────────────────────────────
 function EcrãLoading({mensagem}){
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -195,10 +195,9 @@ function EcrãLoading({mensagem}){
   );
 }
 
-// ── Ecrã de Auth ──────────────────────────────────────────────────────────
-function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,authLoad,aguardaVerificacao,setAguardaVerificacao,submitAuth,reenviarVerificacao,modoAuth,setModoAuth,recuperarSenha,redefinirSenha,novaSenha,setNovaSenha,tokenRedefinir}){
+// ── Ecrã Auth ──────────────────────────────────────────────────────────────
+function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,authLoad,aguardaVerificacao,setAguardaVerificacao,submitAuth,reenviarVerificacao,modoAuth,setModoAuth,recuperarSenha,redefinirSenha,novaSenha,setNovaSenha}){
 
-  // Redefinir senha
   if(modoAuth==="redefinir") return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
@@ -209,8 +208,8 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
         <label style={{fontSize:12,fontWeight:600,color:"#444",display:"block",marginBottom:3}}>Nova Senha *</label>
         <input type="password" placeholder="Mínimo 6 caracteres" value={novaSenha} onChange={e=>setNovaSenha(e.target.value)}
           style={{width:"100%",padding:"9px 11px",border:"1px solid #ccc",borderRadius:7,fontSize:14,boxSizing:"border-box",marginBottom:12}}/>
-        {authMsg&&<div style={{padding:"10px 14px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13,marginBottom:12}}>{authMsg}</div>}
-        {authErro&&<div style={{padding:"10px 14px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {authErro}</div>}
+        {authMsg&&<div style={{padding:"10px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13,marginBottom:12}}>{authMsg}</div>}
+        {authErro&&<div style={{padding:"10px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {authErro}</div>}
         <button onClick={redefinirSenha} disabled={authLoad}
           style={{width:"100%",padding:13,background:authLoad?"#93c5fd":"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:authLoad?"not-allowed":"pointer"}}>
           {authLoad?"⏳ A processar...":"🔑 Redefinir Senha"}
@@ -222,7 +221,6 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
     </div>
   );
 
-  // Recuperar senha
   if(modoAuth==="recuperar") return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
@@ -234,8 +232,8 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
         <label style={{fontSize:12,fontWeight:600,color:"#444",display:"block",marginBottom:3}}>📧 Email *</label>
         <input name="email" type="email" placeholder="professor@email.com" value={authForm.email} onChange={handleAuth}
           style={{width:"100%",padding:"9px 11px",border:"1px solid #ccc",borderRadius:7,fontSize:14,boxSizing:"border-box",marginBottom:12}}/>
-        {authMsg&&<div style={{padding:"10px 14px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13,marginBottom:12}}>{authMsg}</div>}
-        {authErro&&<div style={{padding:"10px 14px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {authErro}</div>}
+        {authMsg&&<div style={{padding:"10px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13,marginBottom:12}}>{authMsg}</div>}
+        {authErro&&<div style={{padding:"10px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {authErro}</div>}
         <button onClick={recuperarSenha} disabled={authLoad}
           style={{width:"100%",padding:13,background:authLoad?"#93c5fd":"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:authLoad?"not-allowed":"pointer"}}>
           {authLoad?"⏳ A enviar...":"📧 Enviar Link de Recuperação"}
@@ -247,7 +245,6 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
     </div>
   );
 
-  // Login / Registo
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
@@ -290,8 +287,7 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
                       padding:"8px 18px",borderRadius:7,border:`2px solid ${authForm.genero===val?"#1a56db":"#ccc"}`,
                       background:authForm.genero===val?"#eff6ff":"#fff",
                       fontWeight:authForm.genero===val?700:400,fontSize:13,flex:1,justifyContent:"center"}}>
-                      <input type="radio" name="genero" value={val} checked={authForm.genero===val}
-                        onChange={handleAuth} style={{display:"none"}}/>
+                      <input type="radio" name="genero" value={val} checked={authForm.genero===val} onChange={handleAuth} style={{display:"none"}}/>
                       {lbl}
                     </label>
                   ))}
@@ -310,9 +306,9 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
               style={{width:"100%",padding:"9px 11px",border:"1px solid #ccc",borderRadius:7,fontSize:14,boxSizing:"border-box"}}/>
           </div>
         </div>
-        {authMsg&&<div style={{marginTop:12,padding:"12px 14px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13}}>{authMsg}</div>}
-        {authErro&&<div style={{marginTop:12,padding:"10px 14px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13}}>⚠️ {authErro}</div>}
-        {aguardaVerificacao ? (
+        {authMsg&&<div style={{marginTop:12,padding:"12px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13}}>{authMsg}</div>}
+        {authErro&&<div style={{marginTop:12,padding:"10px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13}}>⚠️ {authErro}</div>}
+        {aguardaVerificacao?(
           <div style={{marginTop:16,textAlign:"center"}}>
             <p style={{fontSize:13,color:"#555",marginBottom:12}}>
               📧 Enviámos um email para <b>{authForm.email}</b>.<br/>Clique no link para activar a conta.
@@ -326,7 +322,7 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
               <span onClick={()=>setAguardaVerificacao(false)} style={{color:"#1a56db",cursor:"pointer",fontWeight:600}}>Fazer login</span>
             </p>
           </div>
-        ) : (
+        ):(
           <React.Fragment>
             <button onClick={submitAuth} disabled={authLoad}
               style={{marginTop:18,width:"100%",padding:13,background:authLoad?"#93c5fd":"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:authLoad?"not-allowed":"pointer"}}>
@@ -334,13 +330,12 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
             </button>
             <p style={{textAlign:"center",fontSize:12,color:"#888",marginTop:16}}>
               {authStep==="login"?"Ainda não tem conta? ":"Já tem conta? "}
-              <span onClick={()=>setAuthStep(authStep==="login"?"registar":"login")}
-                style={{color:"#1a56db",cursor:"pointer",fontWeight:600}}>
+              <span onClick={()=>setAuthStep(authStep==="login"?"registar":"login")} style={{color:"#1a56db",cursor:"pointer",fontWeight:600}}>
                 {authStep==="login"?"Registar aqui":"Entrar aqui"}
               </span>
             </p>
             {authStep==="login"&&(
-              <p style={{textAlign:"center",fontSize:12,color:"#888",marginTop:8}}>
+              <p style={{textAlign:"center",fontSize:12,marginTop:8}}>
                 <span onClick={()=>setModoAuth("recuperar")} style={{color:"#d97706",cursor:"pointer",fontWeight:600}}>
                   🔑 Esqueceu a senha?
                 </span>
@@ -353,7 +348,7 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
   );
 }
 
-// ── App Principal ─────────────────────────────────────────────────────────
+// ── App ────────────────────────────────────────────────────────────────────
 function App(){
   const [utilizador,setUtilizador]=useState(()=>{try{const u=localStorage.getItem("utilizador");return u?JSON.parse(u):null;}catch{return null;}});
   const [token,setToken]=useState(()=>{try{return localStorage.getItem("token")||"";}catch{return "";}});
@@ -364,7 +359,7 @@ function App(){
   const [authLoad,setAuthLoad]=useState(false);
   const [aguardaVerificacao,setAguardaVerificacao]=useState(false);
   const [verificando,setVerificando]=useState(false);
-  const [modoAuth,setModoAuth]=useState("login"); // login | registar | recuperar | redefinir
+  const [modoAuth,setModoAuth]=useState("login");
   const [tokenRedefinir,setTokenRedefinir]=useState("");
   const [novaSenha,setNovaSenha]=useState("");
   const [historico,setHistorico]=useState([]);
@@ -377,7 +372,6 @@ function App(){
   const [step,setStep]=useState("form");
   const [copiado,setCopiado]=useState(false);
 
-  // Pré-preencher com dados do utilizador
   useEffect(()=>{
     if(utilizador){
       setForm(f=>({...f,
@@ -388,13 +382,11 @@ function App(){
     }
   },[utilizador]);
 
-  // Verificar token no URL
   useEffect(()=>{
     try{
       const params=new URLSearchParams(window.location.search);
-      const verificarToken=params.get("verificar");
       const redefinirToken=params.get("redefinir");
-
+      const verificarToken=params.get("verificar");
       if(redefinirToken){
         setTokenRedefinir(redefinirToken);
         setModoAuth("redefinir");
@@ -442,16 +434,9 @@ function App(){
     try{
       const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
-      if(!res.ok){
-        if(data.naoVerificado)setAguardaVerificacao(true);
-        throw new Error(data.erro||"Erro desconhecido");
-      }
-      if(authStep==="registar"){
-        setAuthMsg("✅ Registo feito! Verifique o seu email e clique no link de confirmação.");
-        setAguardaVerificacao(true);
-      } else {
-        guardarSessao(data.token,data.professor);
-      }
+      if(!res.ok){if(data.naoVerificado)setAguardaVerificacao(true);throw new Error(data.erro||"Erro");}
+      if(authStep==="registar"){setAuthMsg("✅ Registo feito! Verifique o seu email.");setAguardaVerificacao(true);}
+      else{guardarSessao(data.token,data.professor);}
     }catch(err){setAuthErro(err.message);}
     setAuthLoad(false);
   };
@@ -462,7 +447,7 @@ function App(){
       const res=await fetch(`${API}/reenviar-verificacao`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:authForm.email})});
       const data=await res.json();
       if(!res.ok)throw new Error(data.erro||"Erro");
-      setAuthMsg("📧 Email reenviado! Verifique a sua caixa de entrada.");
+      setAuthMsg("📧 Email reenviado!");
     }catch(err){setAuthErro(err.message);}
     setAuthLoad(false);
   };
@@ -498,12 +483,14 @@ function App(){
     }catch(e){}
     setMostrarHistorico(true);
   };
+
+  const artigoDocente=form.generoProfessor==="F"?"A Docente":"O Docente";
   const labelProfessor=form.generoProfessor==="F"?"👩‍🏫 Nome da Professora":"👨‍🏫 Nome do Professor";
 
   const descarregarWord=()=>{
     const el=document.getElementById("plano-imprimivel");
     if(!el)return;
-    const html=`<html><head><meta charset="utf-8"/><style>body{font-family:Arial;font-size:10pt;margin:1cm}h2,h3{text-align:center}table{width:100%;border-collapse:collapse;margin-bottom:10px}th{background:#ccc;border:1px solid #000;padding:5px;text-align:center;font-weight:bold}td{border:1px solid #000;padding:5px;vertical-align:top;font-size:9pt}.qm-subtitulo{font-weight:bold;margin:8px 0 3px}.qm-notacao{background:#f0f7ff;padding:5px;font-family:monospace;margin:4px 0}.qm-exemplo,.qm-propriedades,.qm-exercicios,.qm-resolucao,.qm-tpc{padding:6px;border:1px solid #ccc;margin:4px 0}</style></head><body>${el.innerHTML}</body></html>`;
+    const html=`<html><head><meta charset="utf-8"/><style>body{font-family:Arial;font-size:10pt;margin:1cm}h2,h3{text-align:center}table{width:100%;border-collapse:collapse;margin-bottom:10px}th{background:#ccc;border:1px solid #000;padding:5px;text-align:center;font-weight:bold}td{border:1px solid #000;padding:5px;vertical-align:top;font-size:9pt}</style></head><body>${el.innerHTML}</body></html>`;
     const blob=new Blob(["\ufeff"+html],{type:"application/msword;charset=utf-8"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -529,7 +516,7 @@ function App(){
     const prompt=`Cria um plano de aula completo para "${form.tema}", disciplina ${form.disciplina||"Geral"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano (currículo INDE/MINED).
 Responde SOMENTE com JSON puro sem markdown.
 ${usaLatex?"LATEX: Usa obrigatoriamente LaTeX para TODAS as fórmulas ($...$ ou $$...$$).":"LATEX: Disciplina teórica — NÃO uses LaTeX."}
-GRÁFICOS: Se o tema envolver funções, estatística, geometria, trigonometria, movimento — inclui obrigatoriamente "grafico" com: {"tipo":"funcao","expressao":"2*x+1","titulo":"...","label":"...","xmin":-5,"xmax":5,"eixoX":"x","eixoY":"y"} ou {"tipo":"barras","labels":["A","B"],"valores":[10,20],"titulo":"..."} ou {"tipo":"dispersao","pontos":[{"x":1,"y":2}],"titulo":"..."}. Se não precisar coloca "grafico":null.
+GRÁFICOS: Se o tema envolver funções, estatística, geometria ou trigonometria — inclui "grafico" com: {"tipo":"funcao","expressao":"2*x+1","titulo":"...","label":"...","xmin":-5,"xmax":5,"eixoX":"x","eixoY":"y"} ou {"tipo":"barras","labels":["A","B"],"valores":[10,20],"titulo":"..."} ou {"tipo":"dispersao","pontos":[{"x":1,"y":2}],"titulo":"..."}. Se não precisar coloca "grafico":null.
 JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores":["...","..."],"objectivosAfectivos":["...","..."],"introducao":{"tempo":"5","funcaoDidactica":"Introdução e Motivação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"mediacao":{"tempo":"20","funcaoDidactica":"Mediação e Assimilação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Exposição","meios":"Quadro, marcador, caderno"},"dominio":{"tempo":"15","funcaoDidactica":"Domínio e Consolidação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"controle":{"tempo":"5","funcaoDidactica":"Controle e Avaliação","conteudo":"Marcação do TPC","competencias":"...","actProfessor":["...","..."],"actAluno":["..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"quadroMural":{"definicao":"...","notacao":"...","grafico":null,"exemplos":["...","..."],"graficoExemplos":null,"desenvolvimento":[{"subtitulo":"...","texto":"...","notacao":"...","grafico":null,"exemplos":["..."]}],"propriedades":["...","...","..."],"exercicios":["...","...","..."],"graficoExercicios":null,"resolucaoExercicios":["...","...","..."],"tpc":["...","...","..."],"resolucaoTpc":["...","...","..."]}}`;
     try{
       const res=await fetch(`${API}/gerar`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},body:JSON.stringify({model:"claude-opus-4-8",max_tokens:8000,messages:[{role:"user",content:prompt}]})});
@@ -543,14 +530,7 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
       const safeArr=(v)=>Array.isArray(v)?v:[];
       const safeSection=(s)=>s?{tempo:s.tempo||"5",funcaoDidactica:s.funcaoDidactica||"",conteudo:s.conteudo||"",competencias:s.competencias||"",actProfessor:safeArr(s.actProfessor),actAluno:safeArr(s.actAluno),metodo:s.metodo||"",meios:s.meios||""}:{tempo:"0",funcaoDidactica:"",conteudo:"",competencias:"",actProfessor:[],actAluno:[],metodo:"",meios:""};
       setPlano({disciplina:parsed.disciplina,objectivosCognitivos:safeArr(parsed.objectivosCognitivos),objectivosPsicomotores:safeArr(parsed.objectivosPsicomotores),objectivosAfectivos:safeArr(parsed.objectivosAfectivos),introducao:safeSection(parsed.introducao),mediacao:safeSection(parsed.mediacao),dominio:safeSection(parsed.dominio),controle:safeSection(parsed.controle),quadroMural:{definicao:parsed.quadroMural?.definicao||"",notacao:parsed.quadroMural?.notacao||"",grafico:parsed.quadroMural?.grafico||null,exemplos:safeArr(parsed.quadroMural?.exemplos),graficoExemplos:parsed.quadroMural?.graficoExemplos||null,desenvolvimento:safeArr(parsed.quadroMural?.desenvolvimento),propriedades:safeArr(parsed.quadroMural?.propriedades),exercicios:safeArr(parsed.quadroMural?.exercicios),graficoExercicios:parsed.quadroMural?.graficoExercicios||null,resolucaoExercicios:safeArr(parsed.quadroMural?.resolucaoExercicios),tpc:safeArr(parsed.quadroMural?.tpc),resolucaoTpc:safeArr(parsed.quadroMural?.resolucaoTpc)}});
-
-      // Guardar plano na base de dados
-      fetch(`${API}/guardar-plano`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ tema: form.tema, disciplina: form.disciplina, classe: form.classe, dados: parsed })
-      }).catch(err => console.error("Erro ao guardar plano:", err));
-
+      fetch(`${API}/guardar-plano`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},body:JSON.stringify({tema:form.tema,disciplina:form.disciplina,classe:form.classe,dados:parsed})}).catch(e=>console.error(e));
       setStep("preview");
     }catch(err){setErro("Erro: "+err.message);}
     setLoading(false);
@@ -619,10 +599,8 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
     );
   };
 
-  // Ecrã de verificação de email
   if(verificando) return <EcrãLoading mensagem="A verificar email..."/>;
 
-  // Ecrã de login/registo
   if(!utilizador) return(
     <EcrãAuth
       authStep={authStep} setAuthStep={setAuthStep}
@@ -633,11 +611,9 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
       modoAuth={modoAuth} setModoAuth={setModoAuth}
       recuperarSenha={recuperarSenha} redefinirSenha={redefinirSenha}
       novaSenha={novaSenha} setNovaSenha={setNovaSenha}
-      tokenRedefinir={tokenRedefinir}
     />
   );
 
-  // Formulário
   if(step==="form") return(
     <div style={{maxWidth:840,margin:"0 auto",padding:"20px 14px"}}>
       <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",borderRadius:10,padding:"14px 22px",marginBottom:22,color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
@@ -645,18 +621,17 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
           <div style={{fontSize:20,fontWeight:700}}>📋 Gerador de Plano de Aula com IA</div>
           <div style={{fontSize:13,opacity:.85,marginTop:2}}>Olá, <b>{utilizador?.nome||"Professor"}</b> 👋</div>
         </div>
-        <button onClick={sair} style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>🚪 Sair</button>
-        <button onClick={carregarHistorico} style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>📋 Meus Planos</button>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={carregarHistorico} style={{padding:"7px 14px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>📋 Meus Planos</button>
+          <button onClick={sair} style={{padding:"7px 14px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>🚪 Sair</button>
+        </div>
       </div>
-      {/* Histórico de planos */}
+
       {mostrarHistorico&&(
         <div style={{background:"#fff",borderRadius:10,padding:20,boxShadow:"0 2px 8px rgba(0,0,0,.08)",marginBottom:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
             <h3 style={{fontSize:16,fontWeight:700,color:"#1a3a6b"}}>📋 Meus Planos Gerados</h3>
-            <button onClick={()=>setMostrarHistorico(false)}
-              style={{padding:"4px 12px",background:"#f3f4f6",border:"1px solid #ccc",borderRadius:6,cursor:"pointer",fontSize:13}}>
-              ✖ Fechar
-            </button>
+            <button onClick={()=>setMostrarHistorico(false)} style={{padding:"4px 12px",background:"#f3f4f6",border:"1px solid #ccc",borderRadius:6,cursor:"pointer",fontSize:13}}>✖ Fechar</button>
           </div>
           {historico.length===0?(
             <p style={{color:"#888",fontSize:13,textAlign:"center",padding:20}}>Ainda não gerou nenhum plano.</p>
@@ -685,6 +660,8 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
           )}
         </div>
       )}
+
+      <div style={{background:"#fff",borderRadius:10,padding:22,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           {[["escola","🏫 Escola","Ex: Escola Básica de Tobuè"],["data","📅 Data",""],["curso","📚 Curso","Ex: Diurno"],["duracao","⏱ Duração (min)","45"],["classe","🎓 Classe","Ex: 8"],["turma","🔤 Turma","Ex: A"],["disciplina","📐 Disciplina","Ex: Matemática"],["directorAdjunto","🏛 Director Adjunto",""],["unidadeTematica","📂 Unidade Temática","Ex: Funções"]].map(([name,label,ph])=>(
             <div key={name}>
@@ -731,7 +708,6 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
     </div>
   );
 
-  // Preview
   return(
     <div style={{maxWidth:960,margin:"0 auto",padding:"16px 14px"}}>
       <style>{`@media print{.noprint{display:none!important}body{background:#fff}}`}</style>
