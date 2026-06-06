@@ -196,7 +196,58 @@ function EcrãLoading({mensagem}){
 }
 
 // ── Ecrã de Auth ──────────────────────────────────────────────────────────
-function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,authLoad,aguardaVerificacao,setAguardaVerificacao,submitAuth,reenviarVerificacao}){
+function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,authLoad,aguardaVerificacao,setAguardaVerificacao,submitAuth,reenviarVerificacao,modoAuth,setModoAuth,recuperarSenha,redefinirSenha,novaSenha,setNovaSenha,tokenRedefinir}){
+
+  // Redefinir senha
+  if(modoAuth==="redefinir") return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{fontSize:40}}>🔑</div>
+          <h2 style={{fontSize:20,fontWeight:700,color:"#0e3a8c",margin:"8px 0 4px"}}>Redefinir Senha</h2>
+        </div>
+        <label style={{fontSize:12,fontWeight:600,color:"#444",display:"block",marginBottom:3}}>Nova Senha *</label>
+        <input type="password" placeholder="Mínimo 6 caracteres" value={novaSenha} onChange={e=>setNovaSenha(e.target.value)}
+          style={{width:"100%",padding:"9px 11px",border:"1px solid #ccc",borderRadius:7,fontSize:14,boxSizing:"border-box",marginBottom:12}}/>
+        {authMsg&&<div style={{padding:"10px 14px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13,marginBottom:12}}>{authMsg}</div>}
+        {authErro&&<div style={{padding:"10px 14px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {authErro}</div>}
+        <button onClick={redefinirSenha} disabled={authLoad}
+          style={{width:"100%",padding:13,background:authLoad?"#93c5fd":"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:authLoad?"not-allowed":"pointer"}}>
+          {authLoad?"⏳ A processar...":"🔑 Redefinir Senha"}
+        </button>
+        <p style={{textAlign:"center",fontSize:12,color:"#888",marginTop:14}}>
+          <span onClick={()=>setModoAuth("login")} style={{color:"#1a56db",cursor:"pointer",fontWeight:600}}>← Voltar ao login</span>
+        </p>
+      </div>
+    </div>
+  );
+
+  // Recuperar senha
+  if(modoAuth==="recuperar") return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{fontSize:40}}>🔐</div>
+          <h2 style={{fontSize:20,fontWeight:700,color:"#0e3a8c",margin:"8px 0 4px"}}>Recuperar Senha</h2>
+          <p style={{fontSize:13,color:"#666"}}>Insira o seu email para receber o link de recuperação</p>
+        </div>
+        <label style={{fontSize:12,fontWeight:600,color:"#444",display:"block",marginBottom:3}}>📧 Email *</label>
+        <input name="email" type="email" placeholder="professor@email.com" value={authForm.email} onChange={handleAuth}
+          style={{width:"100%",padding:"9px 11px",border:"1px solid #ccc",borderRadius:7,fontSize:14,boxSizing:"border-box",marginBottom:12}}/>
+        {authMsg&&<div style={{padding:"10px 14px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,color:"#166534",fontSize:13,marginBottom:12}}>{authMsg}</div>}
+        {authErro&&<div style={{padding:"10px 14px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {authErro}</div>}
+        <button onClick={recuperarSenha} disabled={authLoad}
+          style={{width:"100%",padding:13,background:authLoad?"#93c5fd":"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:authLoad?"not-allowed":"pointer"}}>
+          {authLoad?"⏳ A enviar...":"📧 Enviar Link de Recuperação"}
+        </button>
+        <p style={{textAlign:"center",fontSize:12,color:"#888",marginTop:14}}>
+          <span onClick={()=>setModoAuth("login")} style={{color:"#1a56db",cursor:"pointer",fontWeight:600}}>← Voltar ao login</span>
+        </p>
+      </div>
+    </div>
+  );
+
+  // Login / Registo
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0e3a8c,#1a56db)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",borderRadius:14,padding:"36px 32px",width:"100%",maxWidth:420,boxShadow:"0 8px 32px rgba(0,0,0,.18)"}}>
@@ -288,6 +339,13 @@ function EcrãAuth({authStep,setAuthStep,authForm,handleAuth,authErro,authMsg,au
                 {authStep==="login"?"Registar aqui":"Entrar aqui"}
               </span>
             </p>
+            {authStep==="login"&&(
+              <p style={{textAlign:"center",fontSize:12,color:"#888",marginTop:8}}>
+                <span onClick={()=>setModoAuth("recuperar")} style={{color:"#d97706",cursor:"pointer",fontWeight:600}}>
+                  🔑 Esqueceu a senha?
+                </span>
+              </p>
+            )}
           </React.Fragment>
         )}
       </div>
@@ -306,6 +364,11 @@ function App(){
   const [authLoad,setAuthLoad]=useState(false);
   const [aguardaVerificacao,setAguardaVerificacao]=useState(false);
   const [verificando,setVerificando]=useState(false);
+  const [modoAuth,setModoAuth]=useState("login"); // login | registar | recuperar | redefinir
+  const [tokenRedefinir,setTokenRedefinir]=useState("");
+  const [novaSenha,setNovaSenha]=useState("");
+  const [historico,setHistorico]=useState([]);
+  const [mostrarHistorico,setMostrarHistorico]=useState(false);
 
   const [form,setForm]=useState({escola:"",data:"",curso:"Diurno",duracao:"45",classe:"",turma:"",nomeProfessor:"",generoProfessor:"M",disciplina:"",directorAdjunto:"",tema:"",unidadeTematica:""});
   const [plano,setPlano]=useState(null);
@@ -330,7 +393,13 @@ function App(){
     try{
       const params=new URLSearchParams(window.location.search);
       const verificarToken=params.get("verificar");
-      if(verificarToken){
+      const redefinirToken=params.get("redefinir");
+
+      if(redefinirToken){
+        setTokenRedefinir(redefinirToken);
+        setModoAuth("redefinir");
+        window.history.replaceState({},document.title,window.location.pathname);
+      } else if(verificarToken){
         setVerificando(true);
         window.history.replaceState({},document.title,window.location.pathname);
         fetch(`${API}/verificar/${verificarToken}`)
@@ -398,7 +467,37 @@ function App(){
     setAuthLoad(false);
   };
 
-  const artigoDocente=form.generoProfessor==="F"?"A Docente":"O Docente";
+  const recuperarSenha=async()=>{
+    setAuthErro("");setAuthMsg("");setAuthLoad(true);
+    try{
+      const res=await fetch(`${API}/recuperar-senha`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:authForm.email})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.erro||"Erro");
+      setAuthMsg("📧 Email de recuperação enviado! Verifique a sua caixa de entrada.");
+    }catch(err){setAuthErro(err.message);}
+    setAuthLoad(false);
+  };
+
+  const redefinirSenha=async()=>{
+    setAuthErro("");setAuthMsg("");setAuthLoad(true);
+    try{
+      const res=await fetch(`${API}/redefinir-senha`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:tokenRedefinir,novaSenha})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.erro||"Erro");
+      setAuthMsg("✅ "+data.mensagem);
+      setTimeout(()=>{setModoAuth("login");setAuthMsg("");setNovaSenha("");},2000);
+    }catch(err){setAuthErro(err.message);}
+    setAuthLoad(false);
+  };
+
+  const carregarHistorico=async()=>{
+    try{
+      const res=await fetch(`${API}/meus-planos`,{headers:{"Authorization":`Bearer ${token}`}});
+      const data=await res.json();
+      if(res.ok)setHistorico(data);
+    }catch(e){}
+    setMostrarHistorico(true);
+  };
   const labelProfessor=form.generoProfessor==="F"?"👩‍🏫 Nome da Professora":"👨‍🏫 Nome do Professor";
 
   const descarregarWord=()=>{
@@ -531,6 +630,10 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
       authErro={authErro} authMsg={authMsg} authLoad={authLoad}
       aguardaVerificacao={aguardaVerificacao} setAguardaVerificacao={setAguardaVerificacao}
       submitAuth={submitAuth} reenviarVerificacao={reenviarVerificacao}
+      modoAuth={modoAuth} setModoAuth={setModoAuth}
+      recuperarSenha={recuperarSenha} redefinirSenha={redefinirSenha}
+      novaSenha={novaSenha} setNovaSenha={setNovaSenha}
+      tokenRedefinir={tokenRedefinir}
     />
   );
 
@@ -543,8 +646,45 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
           <div style={{fontSize:13,opacity:.85,marginTop:2}}>Olá, <b>{utilizador?.nome||"Professor"}</b> 👋</div>
         </div>
         <button onClick={sair} style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>🚪 Sair</button>
+        <button onClick={carregarHistorico} style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>📋 Meus Planos</button>
       </div>
-      <div style={{background:"#fff",borderRadius:10,padding:22,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}>
+      {/* Histórico de planos */}
+      {mostrarHistorico&&(
+        <div style={{background:"#fff",borderRadius:10,padding:20,boxShadow:"0 2px 8px rgba(0,0,0,.08)",marginBottom:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <h3 style={{fontSize:16,fontWeight:700,color:"#1a3a6b"}}>📋 Meus Planos Gerados</h3>
+            <button onClick={()=>setMostrarHistorico(false)}
+              style={{padding:"4px 12px",background:"#f3f4f6",border:"1px solid #ccc",borderRadius:6,cursor:"pointer",fontSize:13}}>
+              ✖ Fechar
+            </button>
+          </div>
+          {historico.length===0?(
+            <p style={{color:"#888",fontSize:13,textAlign:"center",padding:20}}>Ainda não gerou nenhum plano.</p>
+          ):(
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#f8fafc"}}>
+                    {["Tema","Disciplina","Classe","Data"].map(h=>(
+                      <th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:12,fontWeight:700,color:"#555",borderBottom:"1px solid #e5e7eb"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {historico.map((pl,i)=>(
+                    <tr key={pl.id} style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa"}}>
+                      <td style={{padding:"8px 12px",fontSize:13,fontWeight:600}}>{pl.tema}</td>
+                      <td style={{padding:"8px 12px",fontSize:12,color:"#555"}}>{pl.disciplina||"—"}</td>
+                      <td style={{padding:"8px 12px",fontSize:12,color:"#555"}}>{pl.classe?`${pl.classe}ª`:"—"}</td>
+                      <td style={{padding:"8px 12px",fontSize:12,color:"#555"}}>{new Date(pl.criado_em).toLocaleDateString("pt-MZ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           {[["escola","🏫 Escola","Ex: Escola Básica de Tobuè"],["data","📅 Data",""],["curso","📚 Curso","Ex: Diurno"],["duracao","⏱ Duração (min)","45"],["classe","🎓 Classe","Ex: 8"],["turma","🔤 Turma","Ex: A"],["disciplina","📐 Disciplina","Ex: Matemática"],["directorAdjunto","🏛 Director Adjunto",""],["unidadeTematica","📂 Unidade Temática","Ex: Funções"]].map(([name,label,ph])=>(
             <div key={name}>
