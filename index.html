@@ -498,43 +498,57 @@ function App(){
     try {
       const { jsPDF } = window.jspdf;
 
-      // Página 1 e 2 — Landscape (A4)
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const largura  = pdf.internal.pageSize.getWidth();
-      const altura   = pdf.internal.pageSize.getHeight();
+      // Configurações das páginas
+      const paginas = [
+        { selector: "[data-pdf-pagina='landscape']:nth-child(1)", orientation: "l" },
+        { selector: "[data-pdf-pagina='landscape']:nth-child(2)", orientation: "l" },
+        { selector: "[data-pdf-pagina='portrait']",               orientation: "p" },
+      ];
 
-      // Capturar cada secção separadamente
-      const secções = el.querySelectorAll("[data-pdf-pagina]");
+      const seccoes = el.querySelectorAll("[data-pdf-pagina]");
+      if (!seccoes.length) throw new Error("Secções não encontradas");
 
-      for (let i = 0; i < secções.length; i++) {
-        const sec = secções[i];
-        const orientacao = sec.dataset.pdfPagina === "portrait" ? "portrait" : "landscape";
+      const pdf = new jsPDF({ orientation: "l", unit: "mm", format: "a4" });
 
-        if (i > 0) pdf.addPage([297, 210], orientacao === "landscape" ? "l" : "p");
+      for (let i = 0; i < seccoes.length; i++) {
+        const sec    = seccoes[i];
+        const orient = sec.dataset.pdfPagina === "portrait" ? "p" : "l";
+        const pw     = orient === "l" ? 297 : 210;
+        const ph     = orient === "l" ? 210 : 297;
+
+        if (i > 0) pdf.addPage("a4", orient);
+
+        // Mostrar a secção temporariamente em tamanho real
+        const estilo = sec.style.cssText;
+        sec.style.width    = orient === "l" ? "1100px" : "750px";
+        sec.style.overflow = "visible";
+        sec.style.position = "relative";
 
         const canvas = await html2canvas(sec, {
-          scale: 2,
+          scale: 1.5,
           useCORS: true,
+          allowTaint: true,
           backgroundColor: "#ffffff",
           logging: false,
+          width:  orient === "l" ? 1100 : 750,
         });
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const w = orientacao === "landscape" ? 297 : 210;
-        const h = orientacao === "landscape" ? 210 : 297;
-        const ratio = Math.min(w / (canvas.width / 2), h / (canvas.height / 2));
-        const imgW = (canvas.width / 2) * ratio;
-        const imgH = (canvas.height / 2) * ratio;
-        const x = (w - imgW) / 2;
-        const y = (h - imgH) / 2;
+        sec.style.cssText = estilo; // restaurar estilo original
 
-        pdf.addImage(imgData, "JPEG", x > 0 ? x : 5, y > 0 ? y : 5, imgW > w ? w - 10 : imgW, imgH > h ? h - 10 : imgH);
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+        const ratio   = Math.min((pw - 10) / (canvas.width / 1.5), (ph - 10) / (canvas.height / 1.5));
+        const imgW    = (canvas.width  / 1.5) * ratio;
+        const imgH    = (canvas.height / 1.5) * ratio;
+        const x       = (pw - imgW) / 2;
+        const y       = (ph - imgH) / 2;
+
+        pdf.addImage(imgData, "JPEG", x < 5 ? 5 : x, y < 5 ? 5 : y, imgW, imgH);
       }
 
       pdf.save(`Plano_${(form.tema || "aula").replace(/\s+/g, "_")}.pdf`);
     } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
-      alert("Erro ao gerar PDF. Tente usar o botão Imprimir e salvar como PDF.");
+      console.error("Erro PDF:", err);
+      alert("Erro ao gerar PDF: " + err.message);
     }
     setExportandoPDF(false);
   };
@@ -767,7 +781,7 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <button onClick={()=>{setStep("form");setPlano(null);}} style={{padding:"7px 14px",background:"#fff",border:"1px solid #ccc",borderRadius:6,cursor:"pointer",fontSize:13}}>✏️ Novo Plano</button>
           <button onClick={descarregarWord} style={{padding:"7px 14px",background:"#1a56db",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>⬇️ Word</button>
-          <button onClick={exportarPDF} disabled={exportandoPDF} style={{padding:"7px 14px",background:"#e11d48",color:"#fff",border:"none",borderRadius:6,cursor:exportandoPDF?"not-allowed":"pointer",fontSize:13,fontWeight:700}}>
+          <button onClick={exportarPDF} disabled={exportandoPDF} style={{padding:"7px 14px",background:exportandoPDF?"#f87171":"#e11d48",color:"#fff",border:"none",borderRadius:6,cursor:exportandoPDF?"not-allowed":"pointer",fontSize:13,fontWeight:700}}>
             {exportandoPDF?"⏳ A gerar PDF...":"📄 PDF"}
           </button>
           <button onClick={copiarHTML} style={{padding:"7px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>📋 Copiar</button>
