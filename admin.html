@@ -7,6 +7,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;background:#f3f4f6;min-height:100vh}
@@ -17,24 +18,68 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 const API = "https://plano-aula-backend-production.up.railway.app";
 
+// ── Gráfico de linha ───────────────────────────────────────────────────────
+function GraficoLinha({ labels, datasets, titulo }) {
+  const canvasRef = useRef(null);
+  const chartRef  = useRef(null);
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+    chartRef.current = new Chart(canvasRef.current.getContext("2d"), {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true }, title: { display: !!titulo, text: titulo||"" } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+      }
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [JSON.stringify(labels), JSON.stringify(datasets)]);
+  return <canvas ref={canvasRef} style={{ maxHeight: 280 }}/>;
+}
+
+// ── Gráfico de rosca ───────────────────────────────────────────────────────
+function GraficoRosca({ labels, valores, cores, titulo }) {
+  const canvasRef = useRef(null);
+  const chartRef  = useRef(null);
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+    chartRef.current = new Chart(canvasRef.current.getContext("2d"), {
+      type: "doughnut",
+      data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderWidth: 2 }] },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true, position: "bottom" }, title: { display: !!titulo, text: titulo||"" } }
+      }
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [JSON.stringify(valores)]);
+  return <canvas ref={canvasRef} style={{ maxHeight: 220 }}/>;
+}
+
+// ── App ────────────────────────────────────────────────────────────────────
 function App() {
-  const [secret, setSecret] = useState(()=>{ try{ return localStorage.getItem("admin_secret")||""; }catch{ return ""; } });
-  const [input,  setInput]  = useState("");
-  const [erro,   setErro]   = useState("");
-  const [aba,    setAba]    = useState("stats");
-  const [stats,  setStats]  = useState(null);
-  const [profs,  setProfs]  = useState([]);
-  const [planos, setPlanos] = useState([]);
-  const [search, setSearch] = useState("");
-  const [page,   setPage]   = useState(1);
-  const [total,  setTotal]  = useState(0);
-  const [load,   setLoad]   = useState(false);
+  const [secret,    setSecret]    = useState(()=>{ try{ return localStorage.getItem("admin_secret")||""; }catch{ return ""; } });
+  const [input,     setInput]     = useState("");
+  const [erro,      setErro]      = useState("");
+  const [aba,       setAba]       = useState("stats");
+  const [stats,     setStats]     = useState(null);
+  const [crescimento, setCrescimento] = useState(null);
+  const [profs,     setProfs]     = useState([]);
+  const [planos,    setPlanos]    = useState([]);
+  const [search,    setSearch]    = useState("");
+  const [page,      setPage]      = useState(1);
+  const [total,     setTotal]     = useState(0);
+  const [load,      setLoad]      = useState(false);
 
   const hdrs = { "Content-Type": "application/json", "x-admin-secret": secret };
   const fmt  = (d) => new Date(d).toLocaleDateString("pt-MZ", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const fmtMes = (m) => { const [y,mo]=m.split("-"); const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]; return `${meses[parseInt(mo)-1]} ${y}`; };
 
   const entrar = async () => {
     setErro("");
@@ -43,21 +88,24 @@ function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.erro || "Senha incorrecta");
       try { localStorage.setItem("admin_secret", input); } catch(e) {}
-      setSecret(input);
-      setStats(data);
+      setSecret(input); setStats(data);
     } catch (err) { setErro(err.message); }
   };
 
   const sair = () => {
     try { localStorage.removeItem("admin_secret"); } catch(e) {}
-    setSecret(""); setStats(null);
+    setSecret(""); setStats(null); setCrescimento(null);
   };
 
   const carregarStats = async () => {
     try {
-      const res  = await fetch(`${API}/admin/stats`, { headers: hdrs });
-      const data = await res.json();
-      if (res.ok) setStats(data);
+      const [r1, r2] = await Promise.all([
+        fetch(`${API}/admin/stats`,      { headers: hdrs }),
+        fetch(`${API}/admin/crescimento`,{ headers: hdrs }),
+      ]);
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+      if (r1.ok) setStats(d1);
+      if (r2.ok) setCrescimento(d2);
     } catch(e) {}
   };
 
@@ -66,7 +114,7 @@ function App() {
     const q = s  !== undefined ? s  : search;
     setLoad(true);
     try {
-      const url = `${API}/admin/professores?page=${p}&limit=15${q ? `&search=${encodeURIComponent(q)}` : ""}`;
+      const url = `${API}/admin/professores?page=${p}&limit=15${q?`&search=${encodeURIComponent(q)}`:""}`;
       const res  = await fetch(url, { headers: hdrs });
       const data = await res.json();
       if (res.ok) { setProfs(data.professores); setTotal(data.total); setPage(p); }
@@ -92,20 +140,34 @@ function App() {
   const apagarProf = async (id, nome) => {
     if (!confirm(`Apagar o professor "${nome}"? Esta acção é irreversível.`)) return;
     await fetch(`${API}/admin/professores/${id}`, { method: "DELETE", headers: hdrs });
-    carregarProfs(page, search);
-    carregarStats();
+    carregarProfs(page, search); carregarStats();
   };
 
-  useEffect(() => {
-    if (!secret) return;
-    carregarStats();
-  }, [secret]);
-
+  useEffect(() => { if (!secret) return; carregarStats(); }, [secret]);
   useEffect(() => {
     if (!secret) return;
     if (aba === "professores") carregarProfs(1, "");
     if (aba === "planos")      carregarPlanos();
+    if (aba === "stats")       carregarStats();
   }, [aba]);
+
+  // Preparar dados para gráficos
+  const dadosCrescimento = () => {
+    if (!crescimento) return null;
+    const todosOsMeses = new Set([
+      ...crescimento.professores.map(r => r.mes),
+      ...crescimento.planos.map(r => r.mes),
+    ]);
+    const meses = Array.from(todosOsMeses).sort();
+    const getVal = (arr, mes) => { const r = arr.find(x => x.mes === mes); return r ? parseInt(r.total) : 0; };
+    return {
+      labels: meses.map(fmtMes),
+      datasets: [
+        { label: "Professores Registados", data: meses.map(m => getVal(crescimento.professores, m)), borderColor: "#1a56db", backgroundColor: "rgba(26,86,219,0.1)", tension: 0.4, fill: true, pointRadius: 4 },
+        { label: "Planos Gerados",         data: meses.map(m => getVal(crescimento.planos, m)),      borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,0.1)", tension: 0.4, fill: true, pointRadius: 4 },
+      ]
+    };
+  };
 
   // ── Login ────────────────────────────────────────────────────────────────
   if (!secret) return (
@@ -115,39 +177,27 @@ function App() {
         <h2 style={{color:"#0e3a8c",marginBottom:8}}>Painel de Administração</h2>
         <p style={{fontSize:13,color:"#666",marginBottom:24}}>Gerador de Plano de Aula — Moçambique</p>
         <input type="password" placeholder="Senha de administrador" value={input}
-          onChange={e=>setInput(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&entrar()}
+          onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&entrar()}
           style={{width:"100%",padding:"10px 12px",border:"1px solid #ccc",borderRadius:7,fontSize:14,marginBottom:12}}/>
-        {erro && (
-          <div style={{padding:"8px 12px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>
-            ⚠️ {erro}
-          </div>
-        )}
-        <button onClick={entrar}
-          style={{width:"100%",padding:12,background:"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:"pointer"}}>
-          Entrar
-        </button>
+        {erro && <div style={{padding:"8px 12px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:7,color:"#b91c1c",fontSize:13,marginBottom:12}}>⚠️ {erro}</div>}
+        <button onClick={entrar} style={{width:"100%",padding:12,background:"#1a56db",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:700,cursor:"pointer"}}>Entrar</button>
       </div>
     </div>
   );
 
+  const grafico = dadosCrescimento();
+
   // ── Dashboard ─────────────────────────────────────────────────────────────
   return (
     <div style={{minHeight:"100vh",background:"#f3f4f6"}}>
-
-      {/* Cabeçalho */}
       <div style={{background:"linear-gradient(135deg,#1a56db,#0e3a8c)",padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",color:"#fff"}}>
         <div>
           <div style={{fontSize:18,fontWeight:700}}>📊 Painel de Administração</div>
           <div style={{fontSize:12,opacity:.8}}>Gerador de Plano de Aula — Moçambique</div>
         </div>
-        <button onClick={sair}
-          style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13}}>
-          🚪 Sair
-        </button>
+        <button onClick={sair} style={{padding:"7px 16px",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,cursor:"pointer",fontSize:13}}>🚪 Sair</button>
       </div>
 
-      {/* Abas */}
       <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",display:"flex"}}>
         {[["stats","📈 Estatísticas"],["professores","👥 Professores"],["planos","📋 Planos Gerados"]].map(([k,l])=>(
           <button key={k} onClick={()=>setAba(k)}
@@ -162,7 +212,8 @@ function App() {
         {/* ── Estatísticas ── */}
         {aba==="stats" && stats && (
           <div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:16,marginBottom:24}}>
+            {/* Cards */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14,marginBottom:24}}>
               {[
                 ["👥","Total Professores",  stats.totalProfessores,  "#1a56db"],
                 ["♂", "Masculino",          stats.masculinos,         "#0891b2"],
@@ -172,15 +223,44 @@ function App() {
                 ["📋","Planos Gerados",     stats.totalPlanos,        "#7c3aed"],
                 ["🆕","Novos (7 dias)",     stats.novosUltimos7dias,  "#0891b2"],
               ].map(([icon,label,val,cor])=>(
-                <div key={label} style={{background:"#fff",borderRadius:10,padding:"20px 16px",boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:`4px solid ${cor}`}}>
-                  <div style={{fontSize:26,marginBottom:6}}>{icon}</div>
-                  <div style={{fontSize:28,fontWeight:700,color:cor}}>{val}</div>
-                  <div style={{fontSize:13,color:"#666",marginTop:4}}>{label}</div>
+                <div key={label} style={{background:"#fff",borderRadius:10,padding:"18px 14px",boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:`4px solid ${cor}`}}>
+                  <div style={{fontSize:24,marginBottom:4}}>{icon}</div>
+                  <div style={{fontSize:26,fontWeight:700,color:cor}}>{val}</div>
+                  <div style={{fontSize:12,color:"#666",marginTop:2}}>{label}</div>
                 </div>
               ))}
             </div>
-            <button onClick={carregarStats}
-              style={{padding:"9px 20px",background:"#1a56db",color:"#fff",border:"none",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>
+
+            {/* Gráficos */}
+            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20,marginBottom:20}}>
+              {/* Crescimento */}
+              <div style={{background:"#fff",borderRadius:10,padding:20,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                <h3 style={{fontSize:15,fontWeight:700,color:"#1a3a6b",marginBottom:16}}>📈 Crescimento nos últimos 12 meses</h3>
+                {grafico ? <GraficoLinha labels={grafico.labels} datasets={grafico.datasets}/> : <div className="spinner"/>}
+              </div>
+
+              {/* Género */}
+              <div style={{background:"#fff",borderRadius:10,padding:20,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                <h3 style={{fontSize:15,fontWeight:700,color:"#1a3a6b",marginBottom:16}}>⚥ Distribuição por Género</h3>
+                <GraficoRosca
+                  labels={["Masculino","Feminino","Não indicado"]}
+                  valores={[stats.masculinos, stats.femininos, stats.totalProfessores - stats.masculinos - stats.femininos]}
+                  cores={["#0891b2","#db2777","#e5e7eb"]}
+                />
+              </div>
+            </div>
+
+            {/* Verificados */}
+            <div style={{background:"#fff",borderRadius:10,padding:20,boxShadow:"0 2px 8px rgba(0,0,0,.06)",marginBottom:16}}>
+              <h3 style={{fontSize:15,fontWeight:700,color:"#1a3a6b",marginBottom:16}}>✅ Estado das Contas</h3>
+              <GraficoRosca
+                labels={["Verificados","Não Verificados"]}
+                valores={[stats.verificados, stats.naoVerificados]}
+                cores={["#16a34a","#d97706"]}
+              />
+            </div>
+
+            <button onClick={carregarStats} style={{padding:"9px 20px",background:"#1a56db",color:"#fff",border:"none",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>
               🔄 Actualizar
             </button>
           </div>
@@ -191,19 +271,11 @@ function App() {
           <div>
             <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
               <input placeholder="Pesquisar por nome, email ou escola..." value={search}
-                onChange={e=>setSearch(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&carregarProfs(1,search)}
+                onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&carregarProfs(1,search)}
                 style={{flex:1,minWidth:200,padding:"9px 12px",border:"1px solid #ccc",borderRadius:7,fontSize:13}}/>
-              <button onClick={()=>carregarProfs(1,search)}
-                style={{padding:"9px 16px",background:"#1a56db",color:"#fff",border:"none",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>
-                🔍 Pesquisar
-              </button>
-              <button onClick={()=>{ setSearch(""); carregarProfs(1,""); }}
-                style={{padding:"9px 16px",background:"#f3f4f6",border:"1px solid #ccc",borderRadius:7,cursor:"pointer",fontSize:13}}>
-                ✖ Limpar
-              </button>
+              <button onClick={()=>carregarProfs(1,search)} style={{padding:"9px 16px",background:"#1a56db",color:"#fff",border:"none",borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:600}}>🔍 Pesquisar</button>
+              <button onClick={()=>{setSearch("");carregarProfs(1,"");}} style={{padding:"9px 16px",background:"#f3f4f6",border:"1px solid #ccc",borderRadius:7,cursor:"pointer",fontSize:13}}>✖ Limpar</button>
             </div>
-
             {load ? <div className="spinner"/> : (
               <div>
                 <div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.06)",overflowX:"auto"}}>
@@ -224,11 +296,7 @@ function App() {
                           <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.escola||"—"}</td>
                           <td style={{padding:"10px 12px",fontSize:12,color:"#555"}}>{p.disciplina||"—"}</td>
                           <td style={{padding:"10px 12px",textAlign:"center"}}>
-                            {p.genero==="M"
-                              ? <span style={{color:"#0891b2",fontWeight:700}}>♂ M</span>
-                              : p.genero==="F"
-                              ? <span style={{color:"#db2777",fontWeight:700}}>♀ F</span>
-                              : <span style={{color:"#aaa"}}>—</span>}
+                            {p.genero==="M"?<span style={{color:"#0891b2",fontWeight:700}}>♂ M</span>:p.genero==="F"?<span style={{color:"#db2777",fontWeight:700}}>♀ F</span>:<span style={{color:"#aaa"}}>—</span>}
                           </td>
                           <td style={{padding:"10px 12px",fontSize:13,textAlign:"center",fontWeight:700,color:"#7c3aed"}}>{p.total_planos}</td>
                           <td style={{padding:"10px 12px"}}>
@@ -239,46 +307,24 @@ function App() {
                           <td style={{padding:"10px 12px",fontSize:12,color:"#555",whiteSpace:"nowrap"}}>{fmt(p.criado_em)}</td>
                           <td style={{padding:"10px 12px"}}>
                             <div style={{display:"flex",gap:6}}>
-                              {!p.verificado && (
-                                <button onClick={()=>verificarProf(p.id)}
-                                  style={{padding:"4px 10px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,color:"#166534",whiteSpace:"nowrap"}}>
-                                  ✅ Verificar
-                                </button>
+                              {!p.verificado&&(
+                                <button onClick={()=>verificarProf(p.id)} style={{padding:"4px 10px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,color:"#166534",whiteSpace:"nowrap"}}>✅ Verificar</button>
                               )}
-                              <button onClick={()=>apagarProf(p.id,p.nome)}
-                                style={{padding:"4px 10px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,color:"#b91c1c",whiteSpace:"nowrap"}}>
-                                🗑 Apagar
-                              </button>
+                              <button onClick={()=>apagarProf(p.id,p.nome)} style={{padding:"4px 10px",background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,color:"#b91c1c",whiteSpace:"nowrap"}}>🗑 Apagar</button>
                             </div>
                           </td>
                         </tr>
                       ))}
-                      {profs.length===0 && (
-                        <tr>
-                          <td colSpan={10} style={{padding:30,textAlign:"center",color:"#888",fontSize:13}}>
-                            Nenhum professor encontrado.
-                          </td>
-                        </tr>
-                      )}
+                      {profs.length===0&&<tr><td colSpan={10} style={{padding:30,textAlign:"center",color:"#888",fontSize:13}}>Nenhum professor encontrado.</td></tr>}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Paginação */}
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:12,flexWrap:"wrap",gap:8}}>
                   <span style={{fontSize:13,color:"#666"}}>{total} professor{total!==1?"es":""} no total</span>
                   <div style={{display:"flex",gap:6}}>
-                    <button onClick={()=>carregarProfs(page-1,search)} disabled={page<=1}
-                      style={{padding:"6px 14px",border:"1px solid #ccc",borderRadius:6,cursor:page<=1?"not-allowed":"pointer",background:page<=1?"#f3f4f6":"#fff",fontSize:13}}>
-                      ← Anterior
-                    </button>
-                    <span style={{padding:"6px 14px",background:"#1a56db",color:"#fff",borderRadius:6,fontSize:13,fontWeight:700}}>
-                      {page}
-                    </span>
-                    <button onClick={()=>carregarProfs(page+1,search)} disabled={page*15>=total}
-                      style={{padding:"6px 14px",border:"1px solid #ccc",borderRadius:6,cursor:page*15>=total?"not-allowed":"pointer",background:page*15>=total?"#f3f4f6":"#fff",fontSize:13}}>
-                      Próxima →
-                    </button>
+                    <button onClick={()=>carregarProfs(page-1,search)} disabled={page<=1} style={{padding:"6px 14px",border:"1px solid #ccc",borderRadius:6,cursor:page<=1?"not-allowed":"pointer",background:page<=1?"#f3f4f6":"#fff",fontSize:13}}>← Anterior</button>
+                    <span style={{padding:"6px 14px",background:"#1a56db",color:"#fff",borderRadius:6,fontSize:13,fontWeight:700}}>{page}</span>
+                    <button onClick={()=>carregarProfs(page+1,search)} disabled={page*15>=total} style={{padding:"6px 14px",border:"1px solid #ccc",borderRadius:6,cursor:page*15>=total?"not-allowed":"pointer",background:page*15>=total?"#f3f4f6":"#fff",fontSize:13}}>Próxima →</button>
                   </div>
                 </div>
               </div>
@@ -286,7 +332,7 @@ function App() {
           </div>
         )}
 
-        {/* ── Planos Gerados ── */}
+        {/* ── Planos ── */}
         {aba==="planos" && (
           <div>
             {load ? <div className="spinner"/> : (
@@ -310,20 +356,13 @@ function App() {
                         <td style={{padding:"10px 12px",fontSize:12,color:"#555",whiteSpace:"nowrap"}}>{fmt(pl.criado_em)}</td>
                       </tr>
                     ))}
-                    {planos.length===0 && (
-                      <tr>
-                        <td colSpan={6} style={{padding:30,textAlign:"center",color:"#888",fontSize:13}}>
-                          Nenhum plano gerado ainda.
-                        </td>
-                      </tr>
-                    )}
+                    {planos.length===0&&<tr><td colSpan={6} style={{padding:30,textAlign:"center",color:"#888",fontSize:13}}>Nenhum plano gerado ainda.</td></tr>}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
         )}
-
       </div>
     </div>
   );
