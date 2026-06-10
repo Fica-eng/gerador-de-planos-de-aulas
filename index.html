@@ -4,10 +4,19 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gerador de Plano de Aula</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#1a56db"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Plano de Aula"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script>
     window.MathJax = {
       tex: { inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']] },
@@ -484,7 +493,55 @@ function App(){
     setMostrarHistorico(true);
   };
 
-  const artigoDocente=form.generoProfessor==="F"?"A Docente":"O Docente";
+  const [exportandoPDF, setExportandoPDF] = useState(false);
+
+  const exportarPDF = async () => {
+    const el = document.getElementById("plano-imprimivel");
+    if (!el) return;
+    setExportandoPDF(true);
+    try {
+      const { jsPDF } = window.jspdf;
+
+      // Página 1 e 2 — Landscape (A4)
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const largura  = pdf.internal.pageSize.getWidth();
+      const altura   = pdf.internal.pageSize.getHeight();
+
+      // Capturar cada secção separadamente
+      const secções = el.querySelectorAll("[data-pdf-pagina]");
+
+      for (let i = 0; i < secções.length; i++) {
+        const sec = secções[i];
+        const orientacao = sec.dataset.pdfPagina === "portrait" ? "portrait" : "landscape";
+
+        if (i > 0) pdf.addPage([297, 210], orientacao === "landscape" ? "l" : "p");
+
+        const canvas = await html2canvas(sec, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const w = orientacao === "landscape" ? 297 : 210;
+        const h = orientacao === "landscape" ? 210 : 297;
+        const ratio = Math.min(w / (canvas.width / 2), h / (canvas.height / 2));
+        const imgW = (canvas.width / 2) * ratio;
+        const imgH = (canvas.height / 2) * ratio;
+        const x = (w - imgW) / 2;
+        const y = (h - imgH) / 2;
+
+        pdf.addImage(imgData, "JPEG", x > 0 ? x : 5, y > 0 ? y : 5, imgW > w ? w - 10 : imgW, imgH > h ? h - 10 : imgH);
+      }
+
+      pdf.save(`Plano_${(form.tema || "aula").replace(/\s+/g, "_")}.pdf`);
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      alert("Erro ao gerar PDF. Tente usar o botão Imprimir e salvar como PDF.");
+    }
+    setExportandoPDF(false);
+  };
   const labelProfessor=form.generoProfessor==="F"?"👩‍🏫 Nome da Professora":"👨‍🏫 Nome do Professor";
 
   const descarregarWord=()=>{
@@ -547,7 +604,7 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
     const dirAdj=f.directorAdjunto||"";
     return(
       <div id="plano-imprimivel" style={{fontFamily:"Arial,sans-serif",color:"#000"}}>
-        <div style={{pageBreakAfter:"always"}}>
+        <div data-pdf-pagina="landscape" style={{pageBreakAfter:"always"}}>
           <h2 style={{textAlign:"center",margin:"0 0 8px",fontSize:"13pt"}}>Plano de Aula</h2>
           <table style={{width:"100%",borderCollapse:"collapse",marginBottom:8}}>
             <tbody>
@@ -573,7 +630,7 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
             </tr></tbody>
           </table>
         </div>
-        <div style={{pageBreakAfter:"always"}}>
+        <div data-pdf-pagina="landscape" style={{pageBreakAfter:"always"}}>
           <h3 style={{textAlign:"center",margin:"0 0 8px",fontSize:"12pt"}}>Desenvolvimento da Aula — {f.tema}</h3>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead><tr>{["Tempo","Função Didáctica","Conteúdo","Competências","Act. do Professor","Act. do Aluno","Método","Meios de Ensino"].map(x=><th key={x} style={th}>{x}</th>)}</tr></thead>
@@ -590,7 +647,7 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
             </tbody>
           </table>
         </div>
-        <div style={{marginTop:20}}>
+        <div data-pdf-pagina="portrait" style={{marginTop:20}}>
           <h3 style={{textAlign:"center",margin:"0 0 6px",fontSize:"13pt"}}>Quadro Mural</h3>
           <div style={{textAlign:"center",fontSize:"11pt",fontWeight:"bold",marginBottom:14,color:"#1a56db"}}>Tema: {f.tema}</div>
           <QuadroMural qm={p.quadroMural} disciplina={p.disciplina}/>
@@ -716,6 +773,9 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <button onClick={()=>{setStep("form");setPlano(null);}} style={{padding:"7px 14px",background:"#fff",border:"1px solid #ccc",borderRadius:6,cursor:"pointer",fontSize:13}}>✏️ Novo Plano</button>
           <button onClick={descarregarWord} style={{padding:"7px 14px",background:"#1a56db",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>⬇️ Word</button>
+          <button onClick={exportarPDF} disabled={exportandoPDF} style={{padding:"7px 14px",background:"#e11d48",color:"#fff",border:"none",borderRadius:6,cursor:exportandoPDF?"not-allowed":"pointer",fontSize:13,fontWeight:700}}>
+            {exportandoPDF?"⏳ A gerar PDF...":"📄 PDF"}
+          </button>
           <button onClick={copiarHTML} style={{padding:"7px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>📋 Copiar</button>
           <button onClick={()=>window.print()} style={{padding:"7px 14px",background:"#7c3aed",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>🖨️ Imprimir</button>
           <button onClick={sair} style={{padding:"7px 14px",background:"#ef4444",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700}}>🚪 Sair</button>
@@ -730,6 +790,15 @@ JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><App/></ErrorBoundary>);
+
+// Registar Service Worker para PWA
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/gerador-de-planos-de-aulas/sw.js")
+      .then(() => console.log("✅ Service Worker registado"))
+      .catch(err => console.log("❌ SW erro:", err));
+  });
+}
 </script>
 </body>
 </html>
