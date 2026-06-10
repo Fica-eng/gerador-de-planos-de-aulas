@@ -4,13 +4,6 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gerador de Plano de Aula</title>
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json"/>
-  <meta name="theme-color" content="#1a56db"/>
-  <meta name="mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-  <meta name="apple-mobile-web-app-title" content="Plano de Aula"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -545,8 +538,6 @@ function App(){
     }
     setExportandoPDF(false);
   };
-  const labelProfessor=form.generoProfessor==="F"?"👩‍🏫 Nome da Professora":"👨‍🏫 Nome do Professor";
-
   const descarregarWord=()=>{
     const el=document.getElementById("plano-imprimivel");
     if(!el)return;
