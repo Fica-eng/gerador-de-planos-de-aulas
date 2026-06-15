@@ -89,7 +89,7 @@ function Grafico({dados}){
           try{const fn=new Function("x",`"use strict";return (${dados.expressao});`);const y=fn(x);if(isFinite(y))pts.push({x:parseFloat(x.toFixed(3)),y:parseFloat(y.toFixed(4))});}catch(e){}
         }
         if(pts.length===0)return;
-        chartRef.current=new Chart(ctx,{type:"line",data:{datasets:[{label:dados.label||dados.expressao,data:pts,borderColor:"#1a56db",backgroundColor:"rgba(26,86,219,0.08)",tension:0.1,pointRadius:0,borderWidth:2}]},options:{responsive:true,parsing:false,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:true,text:dados.eixoX||"x"}},y:{type:"linear",title:{display:true,text:dados.eixoY||"y"}}}}});
+        chartRef.current=new Chart(ctx,{type:"line",data:{datasets:[{label:dados.label||dados.expressao,data:pts,borderColor:"#1a56db",backgroundColor:"rgba(26,86,219,0.08)",tension:0.1,pointRadius:0,borderWidth:2}]},options:{responsive:true,parsing:false,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:true,text:dados.eixoX||"x"},grid:{color:"#e5e7eb"}},y:{type:"linear",title:{display:true,text:dados.eixoY||"y"},grid:{color:"#e5e7eb"}}}}});
       } else if(dados.tipo==="multiplas_funcoes"&&Array.isArray(dados.funcoes)){
         const cores=["#1a56db","#e11d48","#16a34a","#d97706","#7c3aed"];
         const xmin=typeof dados.xmin==="number"?dados.xmin:-10;
@@ -101,11 +101,11 @@ function Grafico({dados}){
           }
           return{label:f.label||f.expressao,data:pts,borderColor:cores[i%cores.length],backgroundColor:"transparent",tension:0.1,pointRadius:0,borderWidth:2};
         });
-        chartRef.current=new Chart(ctx,{type:"line",data:{datasets},options:{responsive:true,parsing:false,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:true,text:dados.eixoX||"x"}},y:{type:"linear",title:{display:true,text:dados.eixoY||"y"}}}}});
+        chartRef.current=new Chart(ctx,{type:"line",data:{datasets},options:{responsive:true,parsing:false,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:true,text:dados.eixoX||"x"},grid:{color:"#e5e7eb"}},y:{type:"linear",title:{display:true,text:dados.eixoY||"y"},grid:{color:"#e5e7eb"}}}}});
       } else if(dados.tipo==="barras"&&dados.labels&&dados.valores){
-        chartRef.current=new Chart(ctx,{type:"bar",data:{labels:dados.labels,datasets:[{label:dados.label||"",data:dados.valores,backgroundColor:"rgba(26,86,219,0.7)",borderColor:"#1a56db",borderWidth:1}]},options:{responsive:true,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{title:{display:!!dados.eixoX,text:dados.eixoX||""}},y:{title:{display:!!dados.eixoY,text:dados.eixoY||""}}}}});
+        chartRef.current=new Chart(ctx,{type:"bar",data:{labels:dados.labels,datasets:[{label:dados.label||"",data:dados.valores,backgroundColor:"rgba(26,86,219,0.7)",borderColor:"#1a56db",borderWidth:1}]},options:{responsive:true,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{title:{display:!!dados.eixoX,text:dados.eixoX||""}},y:{title:{display:!!dados.eixoY,text:dados.eixoY||""},beginAtZero:true}}}});
       } else if(dados.tipo==="dispersao"&&Array.isArray(dados.pontos)){
-        chartRef.current=new Chart(ctx,{type:"scatter",data:{datasets:[{label:dados.label||"",data:dados.pontos,backgroundColor:"#1a56db",pointRadius:5}]},options:{responsive:true,parsing:false,plugins:{title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:!!dados.eixoX,text:dados.eixoX||""}},y:{type:"linear",title:{display:!!dados.eixoY,text:dados.eixoY||""}}}}});
+        chartRef.current=new Chart(ctx,{type:"line",data:{datasets:[{label:dados.label||"",data:dados.pontos,borderColor:"#1a56db",backgroundColor:"rgba(26,86,219,0.08)",pointRadius:5,pointBackgroundColor:"#1a56db",tension:0.3,borderWidth:2,fill:false}]},options:{responsive:true,parsing:false,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:!!dados.eixoX,text:dados.eixoX||""},grid:{color:"#e5e7eb"}},y:{type:"linear",title:{display:!!dados.eixoY,text:dados.eixoY||""},grid:{color:"#e5e7eb"},beginAtZero:true}}}});
       }
     }catch(err){console.error("Erro gráfico:",err);}
     return()=>{if(chartRef.current){chartRef.current.destroy();chartRef.current=null;}};
@@ -584,7 +584,34 @@ function App(){
     const prompt=`Cria um plano de aula completo para "${form.tema}", disciplina ${form.disciplina||"Geral"}, ${form.classe||"8"}ª classe, ${form.duracao} minutos, contexto moçambicano (currículo INDE/MINED).
 Responde SOMENTE com JSON puro sem markdown.
 ${usaLatex?"LATEX: Usa obrigatoriamente LaTeX para TODAS as fórmulas ($...$ ou $$...$$).":"LATEX: Disciplina teórica — NÃO uses LaTeX."}
-GRÁFICOS: Se o tema envolver funções, estatística, geometria ou trigonometria — inclui "grafico" com: {"tipo":"funcao","expressao":"2*x+1","titulo":"...","label":"...","xmin":-5,"xmax":5,"eixoX":"x","eixoY":"y"} ou {"tipo":"barras","labels":["A","B"],"valores":[10,20],"titulo":"..."} ou {"tipo":"dispersao","pontos":[{"x":1,"y":2}],"titulo":"..."}. Se não precisar coloca "grafico":null.
+GRÁFICOS — MUITO IMPORTANTE:
+Analisa o tema "${form.tema}" (disciplina ${form.disciplina||"Geral"}).
+
+Se a disciplina for Matemática, Física ou Química, AVALIA se o conteúdo se beneficia de representação gráfica (funções, equações, movimento, forças, energia, reacções, proporções, estatística, geometria, trigonometria, gráficos posição/velocidade/aceleração-tempo, etc.) e, em caso afirmativo, inclui OBRIGATORIAMENTE o campo "grafico" no quadroMural usando uma destas estruturas exactas:
+
+1) Uma função:
+{"tipo":"funcao","expressao":"2*x+1","titulo":"Gráfico de f(x) = 2x + 1","label":"f(x) = 2x+1","xmin":-10,"xmax":10,"eixoX":"x","eixoY":"f(x)","descricao":"..."}
+
+2) Várias funções (comparação):
+{"tipo":"multiplas_funcoes","titulo":"...","funcoes":[{"expressao":"x*x","label":"f(x)=x²"},{"expressao":"2*x","label":"g(x)=2x"}],"xmin":-10,"xmax":10,"eixoX":"x","eixoY":"y"}
+
+3) Barras (estatística, comparação de valores, distribuições):
+{"tipo":"barras","titulo":"...","labels":["A","B","C"],"valores":[10,20,30],"label":"...","eixoX":"...","eixoY":"..."}
+
+4) Dispersão (pares de pontos, dados experimentais, posição vs tempo):
+{"tipo":"dispersao","titulo":"...","pontos":[{"x":0,"y":0},{"x":1,"y":5},{"x":2,"y":20}],"label":"...","eixoX":"Tempo (s)","eixoY":"Posição (m)"}
+
+REGRAS TÉCNICAS OBRIGATÓRIAS:
+- "expressao" deve ser JavaScript válido em função de x: usa x*x (não x^2), Math.sin(x), Math.cos(x), Math.sqrt(x), Math.abs(x), Math.pow(x,3), Math.PI, Math.exp(x).
+- xmin DEVE ser menor que xmax (nunca iguais).
+- Para movimento (cinemática): usa "dispersao" ou "funcao" com eixoX="Tempo (s)" e eixoY a variável física (Posição, Velocidade, etc.), com pelo menos 5-8 pontos realistas calculados a partir das equações do movimento.
+- "labels" e "valores" em "barras" DEVEM ter o mesmo número de elementos.
+- "pontos" em "dispersao" é um array de objectos {"x":number,"y":number}, mínimo 5 pontos.
+- Usa números reais coerentes com o exemplo dado no enunciado (não valores genéricos tipo 1,2,3).
+
+Podes também incluir gráficos adicionais em "graficoExemplos" (dentro dos exemplos), "graficoExercicios" (dentro dos exercícios), ou "grafico" dentro de cada bloco de "desenvolvimento" quando fizer sentido pedagógico.
+
+Se o tema for de disciplina teórica (História, Português, etc.) ou não tiver relação visual/numérica, coloca "grafico":null e não incluas gráficos adicionais.
 JSON EXACTO: {"objectivosCognitivos":["...","...","..."],"objectivosPsicomotores":["...","..."],"objectivosAfectivos":["...","..."],"introducao":{"tempo":"5","funcaoDidactica":"Introdução e Motivação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"mediacao":{"tempo":"20","funcaoDidactica":"Mediação e Assimilação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Exposição","meios":"Quadro, marcador, caderno"},"dominio":{"tempo":"15","funcaoDidactica":"Domínio e Consolidação","conteudo":"...","competencias":"...","actProfessor":["...","...","..."],"actAluno":["...","...","..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"controle":{"tempo":"5","funcaoDidactica":"Controle e Avaliação","conteudo":"Marcação do TPC","competencias":"...","actProfessor":["...","..."],"actAluno":["..."],"metodo":"Elaboração conjunta","meios":"Quadro, marcador, caderno"},"quadroMural":{"definicao":"...","notacao":"...","grafico":null,"exemplos":["...","..."],"graficoExemplos":null,"desenvolvimento":[{"subtitulo":"...","texto":"...","notacao":"...","grafico":null,"exemplos":["..."]}],"propriedades":["...","...","..."],"exercicios":["...","...","..."],"graficoExercicios":null,"resolucaoExercicios":["...","...","..."],"tpc":["...","...","..."],"resolucaoTpc":["...","...","..."]}}`;
     try{
       const res=await fetch(`${API}/gerar`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},body:JSON.stringify({model:"claude-opus-4-8",max_tokens:8000,messages:[{role:"user",content:prompt}]})});
