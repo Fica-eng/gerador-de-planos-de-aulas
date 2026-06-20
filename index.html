@@ -105,7 +105,8 @@ function Grafico({dados}){
       } else if(dados.tipo==="barras"&&dados.labels&&dados.valores){
         chartRef.current=new Chart(ctx,{type:"bar",data:{labels:dados.labels,datasets:[{label:dados.label||"",data:dados.valores,backgroundColor:"rgba(26,86,219,0.7)",borderColor:"#1a56db",borderWidth:1}]},options:{responsive:true,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{title:{display:!!dados.eixoX,text:dados.eixoX||""}},y:{title:{display:!!dados.eixoY,text:dados.eixoY||""},beginAtZero:true}}}});
       } else if(dados.tipo==="dispersao"&&Array.isArray(dados.pontos)){
-        chartRef.current=new Chart(ctx,{type:"line",data:{datasets:[{label:dados.label||"",data:dados.pontos,borderColor:"#1a56db",backgroundColor:"rgba(26,86,219,0.08)",pointRadius:5,pointBackgroundColor:"#1a56db",tension:0.3,borderWidth:2,fill:false}]},options:{responsive:true,parsing:false,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:!!dados.eixoX,text:dados.eixoX||""},grid:{color:"#e5e7eb"}},y:{type:"linear",title:{display:!!dados.eixoY,text:dados.eixoY||""},grid:{color:"#e5e7eb"},beginAtZero:true}}}});
+        const pontosOrdenados=[...dados.pontos].sort((a,b)=>a.x-b.x);
+        chartRef.current=new Chart(ctx,{type:"line",data:{datasets:[{label:dados.label||"",data:pontosOrdenados,borderColor:"#1a56db",backgroundColor:"rgba(26,86,219,0.08)",pointRadius:5,pointBackgroundColor:"#1a56db",tension:0.4,borderWidth:2,fill:false,cubicInterpolationMode:"monotone"}]},options:{responsive:true,parsing:false,plugins:{legend:{display:true},title:{display:!!dados.titulo,text:dados.titulo||""}},scales:{x:{type:"linear",title:{display:!!dados.eixoX,text:dados.eixoX||""},grid:{color:"#e5e7eb"}},y:{type:"linear",title:{display:!!dados.eixoY,text:dados.eixoY||""},grid:{color:"#e5e7eb"},beginAtZero:true}}}});
       }
     }catch(err){console.error("Erro gráfico:",err);}
     return()=>{if(chartRef.current){chartRef.current.destroy();chartRef.current=null;}};
@@ -602,9 +603,12 @@ Se a disciplina for Matemática, Física ou Química, AVALIA se o conteúdo se b
 {"tipo":"dispersao","titulo":"...","pontos":[{"x":0,"y":0},{"x":1,"y":5},{"x":2,"y":20}],"label":"...","eixoX":"Tempo (s)","eixoY":"Posição (m)"}
 
 REGRAS TÉCNICAS OBRIGATÓRIAS:
+- Para QUALQUER função matemática (linear, quadrática, cúbica, trigonométrica, exponencial, etc.) usa SEMPRE o tipo "funcao" ou "multiplas_funcoes" com o campo "expressao" em JavaScript — NUNCA uses "dispersao" com pontos fixos para representar uma função contínua, pois isso produz um gráfico em degraus incorrecto.
 - "expressao" deve ser JavaScript válido em função de x: usa x*x (não x^2), Math.sin(x), Math.cos(x), Math.sqrt(x), Math.abs(x), Math.pow(x,3), Math.PI, Math.exp(x).
+- Exemplo CORRECTO para f(x) = x² - 2x - 3: {"tipo":"funcao","expressao":"x*x - 2*x - 3","titulo":"Gráfico de f(x) = x² - 2x - 3","label":"f(x) = x² - 2x - 3","xmin":-5,"xmax":5,"eixoX":"x","eixoY":"f(x)"}
 - xmin DEVE ser menor que xmax (nunca iguais).
-- Para movimento (cinemática): usa "dispersao" ou "funcao" com eixoX="Tempo (s)" e eixoY a variável física (Posição, Velocidade, etc.), com pelo menos 5-8 pontos realistas calculados a partir das equações do movimento.
+- "dispersao" é reservada APENAS para dados experimentais reais ou discretos (ex: medições de laboratório, resultados de inquéritos) — nunca para representar uma função matemática contínua.
+- Para movimento (cinemática) com equação conhecida (ex: posição em função do tempo), usa "funcao" com a expressão da equação, eixoX="Tempo (s)" e eixoY a variável física correspondente. Só usa "dispersao" se os dados forem realmente pontos medidos sem fórmula.
 - "labels" e "valores" em "barras" DEVEM ter o mesmo número de elementos.
 - "pontos" em "dispersao" é um array de objectos {"x":number,"y":number}, mínimo 5 pontos.
 - Usa números reais coerentes com o exemplo dado no enunciado (não valores genéricos tipo 1,2,3).
